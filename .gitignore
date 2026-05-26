@@ -7,6 +7,9 @@ out/
 build/
 release/
 
+# Vendored binaries/models (provisioned via scripts/setup-whisper.mjs)
+vendor/
+
 # Brainstorming visual companion (local-only)
 .superpowers/
 

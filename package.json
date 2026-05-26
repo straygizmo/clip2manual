@@ -8,7 +8,8 @@
     "build": "electron-vite build",
     "start": "electron-vite preview",
     "test": "vitest run",
-    "typecheck": "tsc --build --force tsconfig.json"
+    "typecheck": "tsc --build --force tsconfig.json",
+    "setup:whisper": "node scripts/setup-whisper.mjs"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
