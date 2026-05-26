@@ -26,7 +26,16 @@ export type FetchLike = (
   arrayBuffer(): Promise<ArrayBuffer>;
 }>;
 
-const defaultFetch = globalThis.fetch as unknown as FetchLike;
+/** 本番では global fetch を FetchLike の境界に明示的に適合させる。 */
+const defaultFetch: FetchLike = async (url, init) => {
+  const res = await globalThis.fetch(url, init as RequestInit);
+  return {
+    ok: res.ok,
+    status: res.status,
+    json: () => res.json(),
+    arrayBuffer: () => res.arrayBuffer(),
+  };
+};
 
 /** /speakers の構造をレンダラ向けの {speaker,label} 配列に平坦化する。 */
 export function flattenSpeakers(raw: RawSpeaker[]): SpeakerOption[] {
@@ -57,8 +66,7 @@ export async function synthesize(
     { method: 'POST' },
   );
   if (!q.ok) throw new Error(`audio_query failed (${q.status})`);
-  const query = (await q.json()) as Record<string, unknown>;
-  query['speedScale'] = input.speed;
+  const query = { ...((await q.json()) as Record<string, unknown>), speedScale: input.speed };
 
   const s = await fetchFn(`${baseUrl}/synthesis?speaker=${input.speaker}`, {
     method: 'POST',

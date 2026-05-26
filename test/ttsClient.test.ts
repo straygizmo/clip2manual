@@ -30,6 +30,7 @@ describe('synthesize', () => {
 
     expect(calls).toHaveLength(2);
     expect(calls[0].url).toContain('/audio_query?text=');
+    expect(decodeURIComponent(calls[0].url)).toContain('text=こんにちは');
     expect(calls[0].url).toContain('speaker=3');
     expect(calls[1].url).toBe('http://e/synthesis?speaker=3');
     expect(JSON.parse(calls[1].init.body).speedScale).toBe(1.3);
