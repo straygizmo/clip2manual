@@ -1,5 +1,6 @@
 import { app, BrowserWindow, session, desktopCapturer } from 'electron';
 import { join } from 'node:path';
+import { registerIpc } from './ipc';
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -22,6 +23,7 @@ function createWindow(): void {
 app.whenReady().then(() => {
   // audio: 'loopback' is ignored by the renderer (it calls getDisplayMedia with audio:false);
   // narration is captured separately via getUserMedia (the microphone) in ScreenRecorder.
+  registerIpc();
   session.defaultSession.setDisplayMediaRequestHandler((_request, callback) => {
     desktopCapturer
       .getSources({ types: ['screen'] })

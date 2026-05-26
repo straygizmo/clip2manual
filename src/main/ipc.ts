@@ -1,0 +1,69 @@
+import { ipcMain, screen, app } from 'electron';
+import { promises as fs } from 'node:fs';
+import * as path from 'node:path';
+import { ClickHook } from './clickHook';
+import { initProjectDir, saveProject, assetPath } from './projectStore';
+import { buildClickLog } from '../shared/clickLog';
+import { type CaptureGeometry } from '../shared/coordinateTransform';
+import { createProject, type ProjectSource } from '../shared/types';
+
+interface StopPayload {
+  video: ArrayBuffer;
+  audio: ArrayBuffer;
+  videoWidth: number;
+  videoHeight: number;
+}
+
+let clickHook: ClickHook | null = null;
+let t0Ms = 0;
+
+export function registerIpc(): void {
+  ipcMain.handle('recording:start', () => {
+    clickHook = new ClickHook();
+    clickHook.start();
+    t0Ms = Date.now();
+    return { ok: true };
+  });
+
+  ipcMain.handle('recording:stop', async (_e, payload: StopPayload) => {
+    const rawEvents = clickHook ? clickHook.stop() : [];
+    clickHook = null;
+
+    const display = screen.getPrimaryDisplay();
+    const sf = display.scaleFactor;
+    // uiohook は物理ピクセルで座標を返す前提。DIP の bounds をスケール倍して物理空間に合わせる。
+    // （実機での整合は手動検証で確認し、必要なら係数を調整する。）
+    const geometry: CaptureGeometry = {
+      displayOriginX: display.bounds.x * sf,
+      displayOriginY: display.bounds.y * sf,
+      displayWidth: display.bounds.width * sf,
+      displayHeight: display.bounds.height * sf,
+      videoWidth: payload.videoWidth,
+      videoHeight: payload.videoHeight,
+    };
+    const clicks = buildClickLog(rawEvents, t0Ms, geometry);
+
+    const projectDir = path.join(app.getPath('videos'), 'clip2manual', `rec-${Date.now()}`);
+    await initProjectDir(projectDir);
+    await fs.writeFile(assetPath(projectDir, 'assets/raw.webm'), Buffer.from(payload.video));
+    await fs.writeFile(assetPath(projectDir, 'assets/narration.webm'), Buffer.from(payload.audio));
+    await fs.writeFile(assetPath(projectDir, 'assets/clicks.json'), JSON.stringify(clicks, null, 2));
+
+    const source: ProjectSource = {
+      video: 'assets/raw.webm',
+      narration: 'assets/narration.webm',
+      clickLog: 'assets/clicks.json',
+      display: {
+        width: payload.videoWidth,
+        height: payload.videoHeight,
+        scaleFactor: sf,
+        originX: display.bounds.x,
+        originY: display.bounds.y,
+      },
+    };
+    const project = createProject({ name: path.basename(projectDir), source });
+    await saveProject(projectDir, project);
+
+    return { projectDir, clickCount: clicks.length };
+  });
+}
