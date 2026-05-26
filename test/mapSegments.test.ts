@@ -38,6 +38,12 @@ describe('mapWhisperSegments', () => {
     expect(out[1].clicks).toHaveLength(1);
   });
 
+  it('assigns a click on the exact boundary to the containing (later) segment', () => {
+    const out = mapWhisperSegments(segs, [click(1.0)], voice);
+    expect(out[0].clicks).toHaveLength(0);
+    expect(out[1].clicks.map((c) => c.t)).toEqual([1.0]);
+  });
+
   it('assigns a gap/edge click to the nearest segment', () => {
     const gappy: WhisperSegment[] = [
       { offsets: { from: 0, to: 1000 }, text: 'a' },

@@ -9,6 +9,10 @@ export interface WhisperJson {
   transcription: WhisperSegment[];
 }
 
+function contains(t: number, start: number, end: number): boolean {
+  return t >= start && t < end;
+}
+
 function distanceToRange(t: number, start: number, end: number): number {
   if (t < start) return start - t;
   if (t >= end) return t - end;
@@ -36,15 +40,17 @@ export function mapWhisperSegments(
   if (segments.length === 0) return segments;
 
   for (const c of clicks) {
-    let best = 0;
-    let bestDist = Infinity;
-    segments.forEach((s, i) => {
-      const d = distanceToRange(c.t, s.videoStart, s.videoEnd);
-      if (d < bestDist) {
-        bestDist = d;
-        best = i;
-      }
-    });
+    let best = segments.findIndex((s) => contains(c.t, s.videoStart, s.videoEnd));
+    if (best === -1) {
+      let bestDist = Infinity;
+      segments.forEach((s, i) => {
+        const d = distanceToRange(c.t, s.videoStart, s.videoEnd);
+        if (d < bestDist) {
+          bestDist = d;
+          best = i;
+        }
+      });
+    }
     segments[best].clicks.push(c);
   }
   return segments;
