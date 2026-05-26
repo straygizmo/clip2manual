@@ -19,10 +19,21 @@ describe('createProject', () => {
     expect(p.settings.timingMode).toBe('video-follows-audio');
     expect(p.segments).toEqual([]);
     expect(p.meta.source).toBe(source);
+    expect(p.settings.llm).toEqual({ provider: 'anthropic', model: 'claude-opus-4-7' });
+    expect(p.settings.tts).toEqual({ defaultSpeaker: 3, defaultSpeed: 1.0 });
   });
 
   it('uses the provided createdAt when given', () => {
     const p = createProject({ name: 'demo', source, createdAt: '2026-05-26T00:00:00.000Z' });
     expect(p.meta.createdAt).toBe('2026-05-26T00:00:00.000Z');
+  });
+
+  it('generates a createdAt when not provided', () => {
+    const before = Date.now();
+    const p = createProject({ name: 'demo', source });
+    const after = Date.now();
+    const ts = Date.parse(p.meta.createdAt);
+    expect(ts).toBeGreaterThanOrEqual(before);
+    expect(ts).toBeLessThanOrEqual(after);
   });
 });

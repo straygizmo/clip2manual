@@ -12,7 +12,7 @@ export interface ClickEvent {
   x: number;       // 映像内ピクセル座標
   y: number;
   t: number;       // t0 からの相対秒
-  button: number;
+  button: number; // 0=left 1=middle 2=right (uiohook-napi 準拠)
 }
 
 export interface SegmentVoice {
@@ -49,9 +49,12 @@ export interface TTSSettings {
   defaultSpeed: number;
 }
 
+export type HighlightStyle = 'ripple';
+export type TimingMode = 'video-follows-audio';
+
 export interface ProjectSettings {
-  highlightStyle: 'ripple';
-  timingMode: 'video-follows-audio';
+  highlightStyle: HighlightStyle;
+  timingMode: TimingMode;
   llm: LLMSettings;
   tts: TTSSettings;
 }
