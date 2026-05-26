@@ -24,16 +24,20 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  // audio: 'loopback' is ignored by the renderer (it calls getDisplayMedia with audio:false);
+  // narration is captured separately via getUserMedia (the microphone) in ScreenRecorder.
   registerIpc();
   registerAssetProtocol();
   session.defaultSession.setDisplayMediaRequestHandler((_request, callback) => {
     desktopCapturer
       .getSources({ types: ['screen'] })
       .then((sources) => {
+        // TODO phase-2+: allow the user to choose which display/window to capture.
         callback({ video: sources[0], audio: 'loopback' });
       })
       .catch((err) => {
         console.error('Failed to enumerate screen sources for display media', err);
+        // Resolve with no video so the renderer's getDisplayMedia rejects instead of hanging.
         callback({});
       });
   });
