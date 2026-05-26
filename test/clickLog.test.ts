@@ -33,4 +33,10 @@ describe('buildClickLog', () => {
     const log = buildClickLog([raw(10, 10, 1100), raw(20, 20, 1200)], 1000, geometry);
     expect(log.map((e) => e.x)).toEqual([10, 20]);
   });
+
+  it('keeps a click that happens exactly at t0 (t = 0)', () => {
+    const log = buildClickLog([raw(100, 200, 1000)], 1000, geometry);
+    expect(log).toHaveLength(1);
+    expect(log[0].t).toBe(0);
+  });
 });
