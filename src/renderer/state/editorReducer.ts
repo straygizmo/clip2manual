@@ -20,6 +20,7 @@ export type EditorAction =
   | { type: 'CLOSE_PROJECT' }
   | { type: 'SELECT_SEGMENT'; id: string }
   | { type: 'SET_CURRENT_TIME'; time: number }
+  | { type: 'EDIT_SEGMENT_TEXT'; id: string; text: string }
   | { type: 'TRANSCRIPTION_START' }
   | { type: 'TRANSCRIPTION_PROGRESS'; percent: number }
   | { type: 'TRANSCRIPTION_DONE'; segments: Segment[] }
@@ -50,6 +51,17 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       return { ...state, selectedSegmentId: action.id };
     case 'SET_CURRENT_TIME':
       return { ...state, currentTime: action.time };
+    case 'EDIT_SEGMENT_TEXT':
+      if (!state.project) return state;
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          segments: state.project.segments.map((s) =>
+            s.id === action.id ? { ...s, correctedText: action.text } : s,
+          ),
+        },
+      };
     case 'TRANSCRIPTION_START':
       return { ...state, transcription: { status: 'running', percent: 0, error: null } };
     case 'TRANSCRIPTION_PROGRESS':

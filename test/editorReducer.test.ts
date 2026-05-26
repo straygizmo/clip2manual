@@ -60,4 +60,29 @@ describe('editorReducer', () => {
     expect(s.transcription.status).toBe('error');
     expect(s.transcription.error).toBe('boom');
   });
+
+  it('EDIT_SEGMENT_TEXT updates correctedText of the matching segment only', () => {
+    let s = editorReducer(initialEditorState, { type: 'OPEN_PROJECT', projectDir: '/d', project: makeProject() });
+    s = editorReducer(s, {
+      type: 'TRANSCRIPTION_DONE',
+      segments: [seg, { ...seg, id: 'seg-002', originalText: 'b', correctedText: 'b' }],
+    });
+    s = editorReducer(s, { type: 'EDIT_SEGMENT_TEXT', id: 'seg-002', text: 'edited' });
+    const segs = s.project!.segments;
+    expect(segs[0].correctedText).toBe('a'); // 他セグメントは不変
+    expect(segs[1].correctedText).toBe('edited'); // 該当セグメントのみ更新
+    expect(segs[1].originalText).toBe('b'); // originalText は不変
+  });
+
+  it('EDIT_SEGMENT_TEXT is a no-op for an unknown id', () => {
+    let s = editorReducer(initialEditorState, { type: 'OPEN_PROJECT', projectDir: '/d', project: makeProject() });
+    s = editorReducer(s, { type: 'TRANSCRIPTION_DONE', segments: [seg] });
+    s = editorReducer(s, { type: 'EDIT_SEGMENT_TEXT', id: 'nope', text: 'x' });
+    expect(s.project!.segments[0].correctedText).toBe('a');
+  });
+
+  it('EDIT_SEGMENT_TEXT is a no-op when no project is open', () => {
+    const s = editorReducer(initialEditorState, { type: 'EDIT_SEGMENT_TEXT', id: 'seg-001', text: 'x' });
+    expect(s.project).toBeNull();
+  });
 });
