@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { Segment } from '../shared/types';
+import type { Segment, ProjectSettings } from '../shared/types';
 
 export interface StopPayload {
   video: ArrayBuffer;
@@ -27,5 +27,15 @@ contextBridge.exposeInMainWorld('api', {
     const listener = (_e: unknown, percent: number) => cb(percent);
     ipcRenderer.on('transcription:progress', listener);
     return () => { ipcRenderer.removeListener('transcription:progress', listener); };
+  },
+  updateSettings: (settings: ProjectSettings) => ipcRenderer.invoke('project:updateSettings', settings),
+  ttsSpeakers: () => ipcRenderer.invoke('tts:speakers'),
+  ttsGenerateSegment: (id: string) => ipcRenderer.invoke('tts:generateSegment', id),
+  ttsGenerateAll: () => ipcRenderer.invoke('tts:generateAll'),
+  cancelTts: () => ipcRenderer.invoke('tts:cancel'),
+  onTtsProgress: (cb: (percent: number) => void) => {
+    const listener = (_e: unknown, percent: number) => cb(percent);
+    ipcRenderer.on('tts:progress', listener);
+    return () => { ipcRenderer.removeListener('tts:progress', listener); };
   },
 });

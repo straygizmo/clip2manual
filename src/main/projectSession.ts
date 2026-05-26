@@ -1,4 +1,4 @@
-import { type Project, type Segment } from '../shared/types';
+import { type Project, type ProjectSettings, type Segment } from '../shared/types';
 import { saveProject } from './projectStore';
 
 /** main プロセスで「現在開いているプロジェクト」を保持する。 */
@@ -26,6 +26,14 @@ export class ProjectSession {
   async updateSegments(segments: Segment[]): Promise<void> {
     const { dir, project } = this.getCurrent();
     const updated: Project = { ...project, segments };
+    this.project = updated;
+    await saveProject(dir, updated);
+  }
+
+  /** 設定を差し替えて project.json に保存する。 */
+  async updateSettings(settings: ProjectSettings): Promise<void> {
+    const { dir, project } = this.getCurrent();
+    const updated: Project = { ...project, settings };
     this.project = updated;
     await saveProject(dir, updated);
   }

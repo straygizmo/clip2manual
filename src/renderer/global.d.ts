@@ -1,4 +1,4 @@
-import type { Project, Segment } from '../shared/types';
+import type { Project, Segment, ProjectSettings, SpeakerOption } from '../shared/types';
 
 export interface StopPayload {
   video: ArrayBuffer;
@@ -33,6 +33,12 @@ declare global {
       runTranscription: () => Promise<{ segments: Segment[] }>;
       cancelTranscription: () => Promise<{ ok: true }>;
       onTranscriptionProgress: (cb: (percent: number) => void) => () => void;
+      updateSettings: (settings: ProjectSettings) => Promise<{ ok: true }>;
+      ttsSpeakers: () => Promise<SpeakerOption[]>;
+      ttsGenerateSegment: (id: string) => Promise<{ segments: Segment[] }>;
+      ttsGenerateAll: () => Promise<{ segments: Segment[] }>;
+      cancelTts: () => Promise<{ ok: true }>;
+      onTtsProgress: (cb: (percent: number) => void) => () => void;
     };
   }
 }

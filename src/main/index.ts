@@ -2,6 +2,7 @@ import { app, BrowserWindow, session, desktopCapturer } from 'electron';
 import { join } from 'node:path';
 import { registerIpc } from './ipc';
 import { registerAssetScheme, registerAssetProtocol } from './assetProtocol';
+import { stopVoicevoxEngine } from './ipc/tts';
 
 registerAssetScheme(); // app ready より前に呼ぶ
 
@@ -46,6 +47,10 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
+});
+
+app.on('before-quit', () => {
+  stopVoicevoxEngine();
 });
 
 app.on('window-all-closed', () => {
