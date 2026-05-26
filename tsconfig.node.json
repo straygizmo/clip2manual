@@ -10,7 +10,7 @@
     "src/main",
     "src/preload",
     "src/shared",
-    "src/renderer/editor",
+    "src/renderer/editor/timelineGeometry.ts",
     "test",
     "electron.vite.config.ts",
     "vitest.config.ts"
