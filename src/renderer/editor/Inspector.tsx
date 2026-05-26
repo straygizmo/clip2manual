@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { type Segment } from '../../shared/types';
 import { useEditor } from '../state/editorStore';
 
@@ -11,6 +11,9 @@ function fmt(t: number): string {
 export function Inspector({ segment, index }: { segment: Segment | null; index: number }) {
   const { state, dispatch } = useEditor();
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  // セグメント切替時に前のセグメントの保存エラー表示を消す
+  useEffect(() => { setSaveError(null); }, [segment?.id]);
 
   if (!segment) {
     return <div style={{ padding: 12, color: '#888' }}>セグメントを選択してください</div>;
