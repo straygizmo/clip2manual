@@ -20,6 +20,11 @@ export interface SegmentVoice {
   speed: number;
 }
 
+export interface SpeakerOption {
+  speaker: number; // VOICEVOX のスタイル id
+  label: string;   // "キャラ（スタイル）"
+}
+
 export interface Segment {
   id: string;
   videoStart: number;
