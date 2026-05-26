@@ -4,6 +4,7 @@ import { PreviewPlayer } from './PreviewPlayer';
 import { Timeline } from './Timeline';
 import { Inspector } from './Inspector';
 import { decodeToWav } from '../audio/decodeToWav';
+import { projectAssetUrl } from './assetUrl';
 
 export function EditorLayout() {
   const { state, dispatch } = useEditor();
@@ -66,8 +67,8 @@ export function EditorLayout() {
         <PreviewPlayer
           videoRef={videoRef}
           audioRef={audioRef}
-          videoUrl="c2m://asset/assets/raw.webm"
-          audioUrl="c2m://asset/assets/narration.webm"
+          videoUrl={projectAssetUrl('assets/raw.webm', state.projectDir ?? '')}
+          audioUrl={projectAssetUrl('assets/narration.webm', state.projectDir ?? '')}
           onTime={(t) => dispatch({ type: 'SET_CURRENT_TIME', time: t })}
           onDuration={setDuration}
         />
