@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, session, desktopCapturer } from 'electron';
 import { join } from 'node:path';
 
 function createWindow(): void {
@@ -11,6 +11,14 @@ function createWindow(): void {
       nodeIntegration: false,
     },
   });
+
+  session.defaultSession.setDisplayMediaRequestHandler(
+    (_request, callback) => {
+      desktopCapturer.getSources({ types: ['screen'] }).then((sources) => {
+        callback({ video: sources[0], audio: 'loopback' });
+      });
+    },
+  );
 
   if (process.env['ELECTRON_RENDERER_URL']) {
     win.loadURL(process.env['ELECTRON_RENDERER_URL']);
