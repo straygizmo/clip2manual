@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>clip2manual — クリック座標検証ツール</title>
+<style>
+  body { font-family: sans-serif; margin: 16px; background: #1b1d27; color: #e6e8ee; }
+  h1 { font-size: 18px; margin: 0 0 8px; }
+  code { background: #2a2d3a; padding: 1px 5px; border-radius: 3px; }
+  .hint { font-size: 12px; color: #9aa0b4; max-width: 760px; line-height: 1.6; }
+  .controls { margin: 12px 0; display: flex; gap: 18px; flex-wrap: wrap; align-items: center; }
+  label.file { display: inline-flex; flex-direction: column; font-size: 12px; gap: 4px; }
+  .stage { position: relative; display: inline-block; max-width: 100%; border: 1px solid #44485a; background: #000; }
+  .stage video { display: block; max-width: 100%; height: auto; }
+  .stage canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
+  .meta { margin-top: 8px; font-size: 12px; color: #9aa0b4; }
+  table { border-collapse: collapse; margin-top: 12px; font-size: 12px; }
+  td, th { border: 1px solid #3a4055; padding: 2px 10px; text-align: right; }
+  th { background: #2a2d3a; }
+</style>
+</head>
+<body>
+<h1>clip2manual — クリック座標検証ツール</h1>
+<p class="hint">
+  録画プロジェクト（<code>Videos/clip2manual/rec-*/</code>）の <code>assets/raw.webm</code> と
+  <code>assets/clicks.json</code> を選ぶと、クリック位置を映像に重ねて表示します。
+  「全クリックを常時表示」をオンにして再生・スクラブし、<strong>実際にクリックした場所（ボタン/アイコン）にマーカー（黄色い輪＋赤い点）が乗っているか</strong>を確認してください。
+  ズレている場合は座標変換の調整が必要です（その量を教えてください）。webm 再生は Chrome / Edge / Firefox で可能です。
+</p>
+
+<div class="controls">
+  <label class="file">raw.webm（映像）<input id="videoFile" type="file" accept="video/webm,video/*" /></label>
+  <label class="file">clicks.json<input id="clicksFile" type="file" accept="application/json,.json" /></label>
+  <label><input id="showAll" type="checkbox" checked /> 全クリックを常時表示</label>
+</div>
+
+<div class="stage" id="stage">
+  <video id="video" controls></video>
+  <canvas id="overlay"></canvas>
+</div>
+<div class="meta" id="meta">映像と clicks.json を選択してください。</div>
+<div id="list"></div>
+
+<script>
+  const videoEl = document.getElementById('video');
+  const canvas = document.getElementById('overlay');
+  const ctx = canvas.getContext('2d');
+  const meta = document.getElementById('meta');
+  const list = document.getElementById('list');
+  const showAll = document.getElementById('showAll');
+  let clicks = [];
+
+  document.getElementById('videoFile').addEventListener('change', (e) => {
+    const f = e.target.files[0];
+    if (f) videoEl.src = URL.createObjectURL(f);
+  });
+
+  document.getElementById('clicksFile').addEventListener('change', async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    try {
+      clicks = JSON.parse(await f.text());
+      if (!Array.isArray(clicks)) throw new Error('配列ではありません');
+    } catch (err) {
+      alert('clicks.json の解析に失敗しました: ' + err);
+      clicks = [];
+    }
+    renderInfo();
+  });
+
+  videoEl.addEventListener('loadedmetadata', () => {
+    canvas.width = videoEl.videoWidth;
+    canvas.height = videoEl.videoHeight;
+    renderInfo();
+  });
+
+  function renderInfo() {
+    const size = videoEl.videoWidth ? `映像サイズ: ${videoEl.videoWidth} × ${videoEl.videoHeight} px` : '映像未読み込み';
+    const center = videoEl.videoWidth ? `／ 中央 ≈ (${Math.round(videoEl.videoWidth / 2)}, ${Math.round(videoEl.videoHeight / 2)})` : '';
+    meta.textContent = `${size} ／ クリック ${clicks.length} 件 ${center}`;
+
+    if (!clicks.length) { list.innerHTML = ''; return; }
+    let html = '<table><tr><th>#</th><th>x</th><th>y</th><th>t(s)</th><th>button</th></tr>';
+    clicks.forEach((c, i) => {
+      html += `<tr><td>${i + 1}</td><td>${Math.round(c.x)}</td><td>${Math.round(c.y)}</td><td>${Number(c.t).toFixed(2)}</td><td>${c.button}</td></tr>`;
+    });
+    list.innerHTML = html + '</table>';
+  }
+
+  function drawMarker(c, alpha, radius) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = '#ffcf33';
+    ctx.lineWidth = Math.max(2, canvas.width / 700);
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, radius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = '#ff5470';
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, Math.max(3, canvas.width / 320), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function draw() {
+    if (canvas.width) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const baseR = Math.max(14, canvas.width / 60);
+      if (showAll.checked) clicks.forEach((c) => drawMarker(c, 0.85, baseR));
+      const t = videoEl.currentTime;
+      clicks.forEach((c) => {
+        const dt = t - c.t;
+        if (dt >= 0 && dt < 1.2) drawMarker(c, 1 - dt / 1.2, baseR + (dt * canvas.width) / 20);
+      });
+    }
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+</script>
+</body>
+</html>
