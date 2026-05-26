@@ -7,7 +7,7 @@ import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { execFileSync } from 'node:child_process';
 
-const WHISPER_VERSION = 'v1.7.4';
+const WHISPER_VERSION = 'v1.8.4';
 const BIN_URL = `https://github.com/ggerganov/whisper.cpp/releases/download/${WHISPER_VERSION}/whisper-bin-x64.zip`;
 const MODEL_URL = 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin';
 
@@ -23,17 +23,23 @@ async function download(url, dest) {
   await pipeline(Readable.fromWeb(res.body), createWriteStream(dest));
 }
 
-function findExe(dir) {
+function findNamed(dir, target) {
   for (const name of readdirSync(dir)) {
     const p = join(dir, name);
     if (statSync(p).isDirectory()) {
-      const found = findExe(p);
+      const found = findNamed(p, target);
       if (found) return found;
-    } else if (name === 'whisper-cli.exe' || name === 'main.exe') {
+    } else if (name.toLowerCase() === target) {
       return p;
     }
   }
   return null;
+}
+
+// whisper-cli.exe を優先する。main.exe は v1.7+ で「deprecated」スタブになり、
+// 警告を出して exit code 1 で終了する（文字起こししない）ため、見つかっても後回しにする。
+function findExe(dir) {
+  return findNamed(dir, 'whisper-cli.exe') ?? findNamed(dir, 'main.exe');
 }
 
 async function main() {
