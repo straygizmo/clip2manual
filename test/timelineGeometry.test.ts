@@ -8,6 +8,10 @@ describe('timeToPercent', () => {
   it('returns 0 for non-positive duration', () => {
     expect(timeToPercent(5, 0)).toBe(0);
   });
+  it('returns 0 for a non-finite duration (e.g. Infinity from a metadata-less WebM)', () => {
+    expect(timeToPercent(5, Infinity)).toBe(0);
+    expect(timeToPercent(5, NaN)).toBe(0);
+  });
   it('clamps to [0,100]', () => {
     expect(timeToPercent(-1, 10)).toBe(0);
     expect(timeToPercent(20, 10)).toBe(100);
@@ -24,5 +28,8 @@ describe('segmentRect', () => {
   });
   it('returns zero width for non-positive duration', () => {
     expect(segmentRect(0, 5, 0)).toEqual({ left: 0, width: 0 });
+  });
+  it('returns zero width for a non-finite duration', () => {
+    expect(segmentRect(0, 5, NaN)).toEqual({ left: 0, width: 0 });
   });
 });
