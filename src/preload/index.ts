@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
+import type { Segment } from '../shared/types';
 
 export interface StopPayload {
   video: ArrayBuffer;
@@ -14,6 +15,7 @@ contextBridge.exposeInMainWorld('api', {
   openProjectDialog: () => ipcRenderer.invoke('project:openDialog'),
   openProject: (projectDir: string) => ipcRenderer.invoke('project:open', projectDir),
   recentProjects: () => ipcRenderer.invoke('project:recent'),
+  updateSegments: (segments: Segment[]) => ipcRenderer.invoke('project:updateSegments', segments),
 
   readAsset: (rel: string) => ipcRenderer.invoke('asset:read', rel),
   writeAsset: (rel: string, data: ArrayBuffer) => ipcRenderer.invoke('asset:write', { rel, data }),

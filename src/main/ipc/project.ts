@@ -4,6 +4,7 @@ import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import { loadProject, assetPath } from '../projectStore';
 import { projectSession } from '../projectSession';
+import { type Segment } from '../../shared/types';
 
 const recordingsRoot = () => path.join(app.getPath('videos'), 'clip2manual');
 
@@ -24,6 +25,11 @@ export function registerProjectIpc(): void {
   });
 
   ipcMain.handle('project:open', (_e, projectDir: string) => openDir(projectDir));
+
+  ipcMain.handle('project:updateSegments', async (_e, segments: Segment[]) => {
+    await projectSession.updateSegments(segments);
+    return { ok: true as const };
+  });
 
   ipcMain.handle('project:recent', async () => {
     const root = recordingsRoot();

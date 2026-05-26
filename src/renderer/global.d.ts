@@ -26,6 +26,7 @@ declare global {
       openProjectDialog: () => Promise<OpenedProject | null>;
       openProject: (projectDir: string) => Promise<OpenedProject>;
       recentProjects: () => Promise<RecentProject[]>;
+      updateSegments: (segments: Segment[]) => Promise<{ ok: true }>;
       readAsset: (rel: string) => Promise<ArrayBuffer>;
       writeAsset: (rel: string, data: ArrayBuffer) => Promise<{ ok: true }>;
       assetExists: (rel: string) => Promise<boolean>;
