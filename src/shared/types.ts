@@ -12,7 +12,7 @@ export interface ClickEvent {
   x: number;       // 映像内ピクセル座標
   y: number;
   t: number;       // t0 からの相対秒
-  button: number; // 0=left 1=middle 2=right (uiohook-napi 準拠)
+  button: number; // uiohook: 1=left 2=right 3=middle; 0 if unknown
 }
 
 export interface SegmentVoice {
