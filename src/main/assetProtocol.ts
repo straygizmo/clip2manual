@@ -24,9 +24,9 @@ export function registerAssetProtocol(): void {
     const dir = projectSession.getCurrentProjectDir();
     if (!dir) return new Response('No project open', { status: 404 });
 
-    const filePath = path.join(dir, rel);
-    const normalizedDir = path.resolve(dir);
-    if (!path.resolve(filePath).startsWith(normalizedDir)) {
+    const filePath = path.resolve(dir, rel);
+    const normalizedDir = path.resolve(dir) + path.sep;
+    if (filePath !== path.resolve(dir) && !filePath.startsWith(normalizedDir)) {
       return new Response('Forbidden', { status: 403 });
     }
     return net.fetch(pathToFileURL(filePath).toString());
