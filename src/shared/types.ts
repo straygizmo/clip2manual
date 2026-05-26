@@ -93,3 +93,24 @@ export function createProject(params: {
     segments: [],
   };
 }
+
+/** project.json を開いたときの軽量な構造検証。フル JSON-Schema は導入しない。 */
+export function validateProject(value: unknown): Project {
+  if (typeof value !== 'object' || value === null) {
+    throw new Error('project.json is not an object');
+  }
+  const p = value as Record<string, unknown>;
+  if (p.version !== CURRENT_PROJECT_VERSION) {
+    throw new Error(`Unsupported project version: ${String(p.version)}`);
+  }
+  if (typeof p.meta !== 'object' || p.meta === null) {
+    throw new Error('project.json is missing "meta"');
+  }
+  if (typeof p.settings !== 'object' || p.settings === null) {
+    throw new Error('project.json is missing "settings"');
+  }
+  if (!Array.isArray(p.segments)) {
+    throw new Error('project.json "segments" must be an array');
+  }
+  return value as Project;
+}
