@@ -18,6 +18,9 @@ npm-debug.log*
 .env
 .env.local
 
+# TypeScript build info
+*.tsbuildinfo
+
 # OS
 Thumbs.db
 .DS_Store
