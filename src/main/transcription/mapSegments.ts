@@ -9,6 +9,40 @@ export interface WhisperJson {
   transcription: WhisperSegment[];
 }
 
+/** 句・文の区切りとして扱う文字（日本語・ASCII）。 */
+const PHRASE_DELIMITERS = /^[、。，．！？!?,.…]+$/;
+
+/**
+ * whisper --max-len 1 のトークン列を、句読点で区切った「句」単位のセグメントに束ねる。
+ * 区切りトークン自体はテキストに含めず、各句は最初の内容トークンの from から
+ * 最後の内容トークンの to までを範囲とする。
+ */
+export function groupTokensIntoPhrases(tokens: WhisperSegment[]): WhisperSegment[] {
+  const phrases: WhisperSegment[] = [];
+  let text = '';
+  let from = 0;
+  let to = 0;
+
+  const flush = () => {
+    if (text !== '') phrases.push({ offsets: { from, to }, text });
+    text = '';
+  };
+
+  for (const tok of tokens) {
+    const t = tok.text.trim();
+    if (t === '') continue; // 空トークン（先頭の無音など）は無視
+    if (PHRASE_DELIMITERS.test(t)) {
+      flush();
+      continue;
+    }
+    if (text === '') from = tok.offsets.from;
+    text += t;
+    to = tok.offsets.to;
+  }
+  flush();
+  return phrases;
+}
+
 function contains(t: number, start: number, end: number): boolean {
   return t >= start && t < end;
 }

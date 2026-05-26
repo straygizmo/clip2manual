@@ -26,6 +26,7 @@ export class SpawnWhisperRunner implements WhisperRunner {
         '-m', input.modelPath,
         '-f', input.audioPath,
         '-l', input.language,
+        '-ml', '1', // トークン単位のタイムスタンプ（句ごとの分割に使う）
         '-oj',
         '-of', input.outBase,
         '--print-progress',

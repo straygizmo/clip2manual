@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { mapWhisperSegments, type WhisperSegment } from '../src/main/transcription/mapSegments';
+import {
+  groupTokensIntoPhrases,
+  mapWhisperSegments,
+  type WhisperSegment,
+} from '../src/main/transcription/mapSegments';
 import { type ClickEvent } from '../src/shared/types';
 
 const voice = { speaker: 3, speed: 1.0 };
@@ -56,5 +60,47 @@ describe('mapWhisperSegments', () => {
 
   it('returns [] and drops clicks when there are no segments', () => {
     expect(mapWhisperSegments([], [click(1)], voice)).toEqual([]);
+  });
+});
+
+describe('groupTokensIntoPhrases', () => {
+  // whisper --max-len 1 が返すトークン単位の実データの一部（句読点は独立トークン）。
+  const tokens: WhisperSegment[] = [
+    { offsets: { from: 0, to: 20 }, text: '' },
+    { offsets: { from: 20, to: 870 }, text: ' じゃあ' },
+    { offsets: { from: 870, to: 1250 }, text: 'もう' },
+    { offsets: { from: 1250, to: 2000 }, text: '一回ね' },
+    { offsets: { from: 2000, to: 2200 }, text: '、' },
+    { offsets: { from: 2200, to: 2600 }, text: 'もし' },
+    { offsets: { from: 2600, to: 2960 }, text: 'もし' },
+    { offsets: { from: 2960, to: 3310 }, text: '、' },
+    { offsets: { from: 3310, to: 5640 }, text: 'でクリックする' },
+  ];
+
+  it('merges subword tokens into one phrase per punctuation-delimited run', () => {
+    const out = groupTokensIntoPhrases(tokens);
+    expect(out.map((p) => p.text)).toEqual(['じゃあもう一回ね', 'もしもし', 'でクリックする']);
+  });
+
+  it('spans each phrase from its first content token to its last', () => {
+    const out = groupTokensIntoPhrases(tokens);
+    expect(out[0].offsets).toEqual({ from: 20, to: 2000 });
+    expect(out[1].offsets).toEqual({ from: 2200, to: 2960 });
+    expect(out[2].offsets).toEqual({ from: 3310, to: 5640 });
+  });
+
+  it('flushes a trailing phrase that has no closing punctuation', () => {
+    const out = groupTokensIntoPhrases([
+      { offsets: { from: 0, to: 500 }, text: 'あ' },
+      { offsets: { from: 500, to: 600 }, text: '。' },
+      { offsets: { from: 600, to: 900 }, text: 'い' },
+    ]);
+    expect(out.map((p) => p.text)).toEqual(['あ', 'い']);
+    expect(out[1].offsets).toEqual({ from: 600, to: 900 });
+  });
+
+  it('returns [] for empty or punctuation-only input', () => {
+    expect(groupTokensIntoPhrases([])).toEqual([]);
+    expect(groupTokensIntoPhrases([{ offsets: { from: 0, to: 100 }, text: '、' }])).toEqual([]);
   });
 });

@@ -9,10 +9,12 @@ import { type WhisperRunner, type WhisperRunInput } from '../src/main/transcript
 class FakeRunner implements WhisperRunner {
   async run(input: WhisperRunInput): Promise<void> {
     input.onProgress?.(100);
+    // whisper --max-len 1 のトークン列を模す（句読点トークンで句に分かれる）。
     const json = {
       transcription: [
         { offsets: { from: 0, to: 1000 }, text: ' a' },
-        { offsets: { from: 1000, to: 2000 }, text: ' b' },
+        { offsets: { from: 1000, to: 1100 }, text: '、' },
+        { offsets: { from: 1100, to: 2000 }, text: ' b' },
       ],
     };
     await fs.writeFile(`${input.outBase}.json`, JSON.stringify(json), 'utf8');

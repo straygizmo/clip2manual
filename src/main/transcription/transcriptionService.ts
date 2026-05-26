@@ -2,7 +2,7 @@
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import { type ClickEvent, type Segment, type SegmentVoice } from '../../shared/types';
-import { mapWhisperSegments, type WhisperJson } from './mapSegments';
+import { groupTokensIntoPhrases, mapWhisperSegments, type WhisperJson } from './mapSegments';
 import { type WhisperRunner } from './whisperRunner';
 
 export interface TranscribeOptions {
@@ -33,5 +33,7 @@ export async function transcribe(opts: TranscribeOptions): Promise<Segment[]> {
   });
   const raw = await fs.readFile(`${outBase}.json`, 'utf8');
   const json = JSON.parse(raw) as WhisperJson;
-  return mapWhisperSegments(json.transcription, opts.clicks, opts.defaultVoice);
+  // whisper は --max-len 1 でトークン単位の区切りを返すので、句読点で句にまとめ直す。
+  const phrases = groupTokensIntoPhrases(json.transcription);
+  return mapWhisperSegments(phrases, opts.clicks, opts.defaultVoice);
 }
