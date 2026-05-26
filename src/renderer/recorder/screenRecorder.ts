@@ -16,7 +16,13 @@ export class ScreenRecorder {
 
   async start(): Promise<void> {
     this.videoStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
-    this.audioStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    try {
+      this.audioStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    } catch (err) {
+      this.videoStream.getTracks().forEach((t) => t.stop());
+      this.videoStream = undefined;
+      throw err;
+    }
     this.videoSettings = this.videoStream.getVideoTracks()[0].getSettings();
 
     this.videoChunks = [];
@@ -31,9 +37,12 @@ export class ScreenRecorder {
   }
 
   async stop(): Promise<RecordingResult> {
+    if (!this.videoRecorder || !this.audioRecorder) {
+      throw new Error('ScreenRecorder.stop() called before start()');
+    }
     const stopOne = (r: MediaRecorder) =>
       new Promise<void>((resolve) => { r.onstop = () => resolve(); r.stop(); });
-    await Promise.all([stopOne(this.videoRecorder!), stopOne(this.audioRecorder!)]);
+    await Promise.all([stopOne(this.videoRecorder), stopOne(this.audioRecorder)]);
     this.videoStream?.getTracks().forEach((t) => t.stop());
     this.audioStream?.getTracks().forEach((t) => t.stop());
     return {
