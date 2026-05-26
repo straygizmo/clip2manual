@@ -5,7 +5,10 @@ import * as path from 'node:path';
 import { resolveVoicevox, VoicevoxNotProvisionedError } from '../src/main/voicevox/voicevoxPaths';
 
 let dir: string;
-beforeEach(async () => { dir = await fs.mkdtemp(path.join(os.tmpdir(), 'c2m-vv-')); });
+beforeEach(async () => {
+  delete process.env.C2M_VOICEVOX_RUN;
+  dir = await fs.mkdtemp(path.join(os.tmpdir(), 'c2m-vv-'));
+});
 afterEach(async () => {
   delete process.env.C2M_VOICEVOX_RUN;
   await fs.rm(dir, { recursive: true, force: true });
