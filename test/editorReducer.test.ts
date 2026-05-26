@@ -85,4 +85,46 @@ describe('editorReducer', () => {
     const s = editorReducer(initialEditorState, { type: 'EDIT_SEGMENT_TEXT', id: 'seg-001', text: 'x' });
     expect(s.project).toBeNull();
   });
+
+  it('SET_SEGMENT_VOICE updates only the matching segment voice', () => {
+    let s = editorReducer(initialEditorState, { type: 'OPEN_PROJECT', projectDir: '/d', project: makeProject() });
+    s = editorReducer(s, { type: 'TRANSCRIPTION_DONE', segments: [seg, { ...seg, id: 'seg-002' }] });
+    s = editorReducer(s, { type: 'SET_SEGMENT_VOICE', id: 'seg-002', voice: { speaker: 8, speed: 1.4 } });
+    expect(s.project!.segments[0].voice).toEqual({ speaker: 3, speed: 1 });
+    expect(s.project!.segments[1].voice).toEqual({ speaker: 8, speed: 1.4 });
+  });
+
+  it('SET_DEFAULT_VOICE updates settings.tts', () => {
+    let s = editorReducer(initialEditorState, { type: 'OPEN_PROJECT', projectDir: '/d', project: makeProject() });
+    s = editorReducer(s, { type: 'SET_DEFAULT_VOICE', voice: { speaker: 5, speed: 0.9 } });
+    expect(s.project!.settings.tts).toEqual({ defaultSpeaker: 5, defaultSpeed: 0.9 });
+  });
+
+  it('APPLY_DEFAULT_VOICE_TO_ALL sets every segment voice to the default', () => {
+    let s = editorReducer(initialEditorState, { type: 'OPEN_PROJECT', projectDir: '/d', project: makeProject() });
+    s = editorReducer(s, { type: 'TRANSCRIPTION_DONE', segments: [seg, { ...seg, id: 'seg-002', voice: { speaker: 9, speed: 2 } }] });
+    s = editorReducer(s, { type: 'SET_DEFAULT_VOICE', voice: { speaker: 5, speed: 0.9 } });
+    s = editorReducer(s, { type: 'APPLY_DEFAULT_VOICE_TO_ALL' });
+    expect(s.project!.segments.map((x) => x.voice)).toEqual([
+      { speaker: 5, speed: 0.9 }, { speaker: 5, speed: 0.9 },
+    ]);
+  });
+
+  it('tts lifecycle: start -> progress -> generated', () => {
+    let s = editorReducer(initialEditorState, { type: 'OPEN_PROJECT', projectDir: '/d', project: makeProject() });
+    s = editorReducer(s, { type: 'TTS_START' });
+    expect(s.tts).toEqual({ status: 'running', percent: 0, error: null });
+    s = editorReducer(s, { type: 'TTS_PROGRESS', percent: 50 });
+    expect(s.tts.percent).toBe(50);
+    s = editorReducer(s, { type: 'TTS_GENERATED', segments: [{ ...seg, ttsAudio: 'tts/seg-001.wav' }] });
+    expect(s.tts.status).toBe('idle');
+    expect(s.project!.segments[0].ttsAudio).toBe('tts/seg-001.wav');
+  });
+
+  it('TTS_ERROR records the message', () => {
+    let s = editorReducer(initialEditorState, { type: 'OPEN_PROJECT', projectDir: '/d', project: makeProject() });
+    s = editorReducer(s, { type: 'TTS_ERROR', error: 'boom' });
+    expect(s.tts.status).toBe('error');
+    expect(s.tts.error).toBe('boom');
+  });
 });
