@@ -11,6 +11,7 @@
     "src/preload",
     "src/shared",
     "src/renderer/editor/timelineGeometry.ts",
+    "src/renderer/state/editorReducer.ts",
     "test",
     "electron.vite.config.ts",
     "vitest.config.ts"
