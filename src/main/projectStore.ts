@@ -22,6 +22,7 @@ export async function saveProject(projectDir: string, project: Project): Promise
 
 export async function loadProject(projectDir: string): Promise<Project> {
   const raw = await fs.readFile(path.join(projectDir, PROJECT_FILE), 'utf8');
+  // NOTE: unchecked cast; full schema validation deferred to a later phase.
   const parsed = JSON.parse(raw) as Project;
   if (parsed.version !== CURRENT_PROJECT_VERSION) {
     throw new Error(`Unsupported project version: ${parsed.version}`);

@@ -46,4 +46,15 @@ describe('projectStore', () => {
     await fs.writeFile(path.join(dir, 'project.json'), JSON.stringify({ version: 999 }), 'utf8');
     await expect(loadProject(dir)).rejects.toThrow(/version/i);
   });
+
+  it('overwrites an existing project.json', async () => {
+    const p1 = createProject({ name: 'v1', source, createdAt: '2026-05-26T00:00:00.000Z' });
+    const p2 = createProject({ name: 'v2', source, createdAt: '2026-05-26T00:00:01.000Z' });
+    await saveProject(dir, p1);
+    await saveProject(dir, p2);
+    const loaded = await loadProject(dir);
+    expect(loaded.meta.name).toBe('v2');
+    const entries = await fs.readdir(dir);
+    expect(entries.filter((f) => f.endsWith('.tmp'))).toHaveLength(0);
+  });
 });
