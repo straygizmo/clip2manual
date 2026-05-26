@@ -20,17 +20,21 @@ describe('encodeWav', () => {
   });
 
   it('writes mono / 16-bit / given sample rate in the fmt chunk', () => {
-    const view = new DataView(encodeWav(new Float32Array(0), 16000));
+    const buf = encodeWav(new Float32Array(0), 16000);
+    const view = new DataView(buf);
+    expect(tag(buf, 12)).toBe('fmt ');
     expect(view.getUint16(22, true)).toBe(1);      // channels
     expect(view.getUint32(24, true)).toBe(16000);  // sample rate
+    expect(view.getUint32(28, true)).toBe(32000);  // byte rate
+    expect(view.getUint16(32, true)).toBe(2);      // block align
     expect(view.getUint16(34, true)).toBe(16);     // bits per sample
   });
 
   it('converts and clamps float samples to signed 16-bit PCM', () => {
-    const view = new DataView(encodeWav(new Float32Array([0, 1, -1, 2]), 16000));
+    const view = new DataView(encodeWav(new Float32Array([0, 1, -1, 1.5]), 16000));
     expect(view.getInt16(44 + 0, true)).toBe(0);
     expect(view.getInt16(44 + 2, true)).toBe(32767);
     expect(view.getInt16(44 + 4, true)).toBe(-32768);
-    expect(view.getInt16(44 + 6, true)).toBe(32767); // clamped
+    expect(view.getInt16(44 + 6, true)).toBe(32767); // over-range 1.5 clamped to 1.0 -> 32767
   });
 });

@@ -2,7 +2,7 @@ function writeTag(view: DataView, offset: number, tag: string): void {
   for (let i = 0; i < tag.length; i++) view.setUint8(offset + i, tag.charCodeAt(i));
 }
 
-/** 16kHz・モノラル前提の Float32 サンプルを 16bit PCM WAV バイト列にエンコードする。 */
+/** Float32 サンプルを 16bit PCM・モノラルの WAV バイト列にエンコードする（主用途: 16kHz）。 */
 export function encodeWav(samples: Float32Array, sampleRate: number): ArrayBuffer {
   const n = samples.length;
   const buffer = new ArrayBuffer(44 + n * 2);
