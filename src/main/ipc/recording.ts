@@ -1,11 +1,12 @@
+// src/main/ipc/recording.ts
 import { ipcMain, screen, app } from 'electron';
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
-import { ClickHook } from './clickHook';
-import { initProjectDir, saveProject, assetPath } from './projectStore';
-import { buildClickLog } from '../shared/clickLog';
-import { type CaptureGeometry } from '../shared/coordinateTransform';
-import { createProject, type ProjectSource } from '../shared/types';
+import { ClickHook } from '../clickHook';
+import { initProjectDir, saveProject, assetPath } from '../projectStore';
+import { buildClickLog } from '../../shared/clickLog';
+import { type CaptureGeometry } from '../../shared/coordinateTransform';
+import { createProject, type ProjectSource } from '../../shared/types';
 
 interface StopPayload {
   video: ArrayBuffer;
@@ -17,9 +18,9 @@ interface StopPayload {
 let clickHook: ClickHook | null = null;
 let t0Ms = 0;
 
-export function registerIpc(): void {
+export function registerRecordingIpc(): void {
   ipcMain.handle('recording:start', () => {
-    if (clickHook) clickHook.stop(); // defensive: release any lingering hook before starting a new one
+    if (clickHook) clickHook.stop();
     clickHook = new ClickHook();
     clickHook.start();
     t0Ms = Date.now();
@@ -32,8 +33,6 @@ export function registerIpc(): void {
 
     const display = screen.getPrimaryDisplay();
     const sf = display.scaleFactor;
-    // uiohook は物理ピクセルで座標を返す前提。DIP の bounds をスケール倍して物理空間に合わせる。
-    // （実機での整合は手動検証で確認し、必要なら係数を調整する。）
     const geometry: CaptureGeometry = {
       displayOriginX: display.bounds.x * sf,
       displayOriginY: display.bounds.y * sf,
@@ -46,8 +45,6 @@ export function registerIpc(): void {
 
     const projectDir = path.join(app.getPath('videos'), 'clip2manual', `rec-${Date.now()}`);
     await initProjectDir(projectDir);
-    // NOTE: phase 1 transfers the whole recording through IPC as ArrayBuffers. For longer
-    // recordings, phase 2 should hand off via a temp file path instead of copying bytes over IPC.
     await fs.writeFile(assetPath(projectDir, 'assets/raw.webm'), Buffer.from(payload.video));
     await fs.writeFile(assetPath(projectDir, 'assets/narration.webm'), Buffer.from(payload.audio));
     await fs.writeFile(assetPath(projectDir, 'assets/clicks.json'), JSON.stringify(clicks, null, 2));
