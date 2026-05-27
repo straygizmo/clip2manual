@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { type Segment, type SpeakerOption } from '../../shared/types';
 import { useEditor } from '../state/editorStore';
+import { toggleEnabled, mergeWithNext, splitAt } from '../state/segmentOps';
 import { projectAssetUrl } from './assetUrl';
 
 function fmt(t: number): string {
@@ -61,6 +62,18 @@ export function Inspector({ segment, index, speakers, projectDir, ttsNonce, busy
     dispatch({ type: 'SET_SEGMENT_VOICE', id: segment.id, voice });
     void persist(segments);
   };
+
+  const segments = state.project?.segments ?? [];
+  const isLast = segments.length > 0 && segments[segments.length - 1].id === segment.id;
+  const canSplit = state.currentTime > segment.videoStart && state.currentTime < segment.videoEnd;
+
+  const applyOps = (next: Segment[], selectId: string) => {
+    dispatch({ type: 'SET_SEGMENTS', segments: next, selectId });
+    void window.api.updateSegments(next);
+  };
+  const onToggleCut = () => applyOps(toggleEnabled(segments, segment.id), segment.id);
+  const onMerge = () => applyOps(mergeWithNext(segments, segment.id), segment.id);
+  const onSplit = () => applyOps(splitAt(segments, segment.id, state.currentTime, `seg-${Date.now()}`), segment.id);
 
   const speakerLabel = speakers.find((s) => s.speaker === segment.voice.speaker)?.label;
   // 話者一覧が未取得でも現在の speaker を選べるよう、フォールバック option を用意する。
@@ -143,6 +156,15 @@ export function Inspector({ segment, index, speakers, projectDir, ttsNonce, busy
         </div>
       )}
 
+      <hr style={{ margin: '12px 0', border: 'none', borderTop: '1px solid #eee' }} />
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button onClick={onToggleCut}>{segment.enabled ? 'カット' : '有効化'}</button>
+        <button onClick={onSplit} disabled={!canSplit}>分割（再生ヘッド位置）</button>
+        <button onClick={onMerge} disabled={isLast}>次と結合</button>
+      </div>
+      {!segment.enabled && (
+        <div style={{ fontSize: 12, color: '#c87', marginTop: 6 }}>カット中（プレビュー/書き出しで除外）</div>
+      )}
       <div style={{ color: '#666', fontSize: 12, marginTop: 8 }}>クリック {segment.clicks.length} 件</div>
     </div>
   );

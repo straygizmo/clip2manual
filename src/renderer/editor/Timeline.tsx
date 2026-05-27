@@ -46,6 +46,7 @@ export function Timeline({ duration, currentTime, segments, selectedId, playingI
               position: 'absolute', top: 3, height: ROW_H - 6,
               left: `${r.left}%`, width: `${r.width}%`,
               background: s.id === playingId ? '#2e8b57' : s.id === selectedId ? '#4a90d9' : '#3a3a3a',
+              opacity: s.enabled === false ? 0.35 : 1,
               border: '1px solid #555', borderRadius: 3, overflow: 'hidden',
               fontSize: 11, color: '#fff', whiteSpace: 'nowrap', cursor: 'pointer', padding: '0 4px',
               boxSizing: 'border-box',
