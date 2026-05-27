@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, FileText, Mic, Download, X } from 'lucide-react';
+import { toast } from 'sonner';
 
 export function EditorLayout() {
   const { state, dispatch } = useEditor();
@@ -111,8 +112,10 @@ export function EditorLayout() {
     try {
       const res = await window.api.runExport(outPath);
       setExportState({ status: 'done', percent: 100, message: `書き出し完了: ${res.outPath}（${res.credit}）` });
+      toast.success('書き出し完了', { description: res.outPath });
     } catch (err) {
       setExportState({ status: 'error', percent: 0, message: String(err) });
+      toast.error('書き出しに失敗しました', { description: String(err) });
     }
   }
 

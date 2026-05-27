@@ -106,8 +106,9 @@ export function Inspector({ segment, index, speakers, projectDir, ttsNonce, busy
         {segment.originalText || '（無音/空）'}
       </div>
 
-      <Label className="mt-2 mb-1 block text-xs text-muted-foreground">補正テキスト</Label>
+      <Label htmlFor="inspector-corrected-text" className="mt-2 mb-1 block text-xs text-muted-foreground">補正テキスト</Label>
       <Textarea
+        id="inspector-corrected-text"
         value={segment.correctedText}
         onChange={(e) => dispatch({ type: 'EDIT_SEGMENT_TEXT', id: segment.id, text: e.target.value })}
         onBlur={onBlurText}

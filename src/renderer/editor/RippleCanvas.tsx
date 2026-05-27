@@ -80,7 +80,7 @@ export function RippleCanvas({ videoRef, clicks }: Props) {
   return (
     <canvas
       ref={canvasRef}
-      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+      className="absolute inset-0 size-full pointer-events-none"
     />
   );
 }

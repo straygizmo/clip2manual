@@ -24,7 +24,7 @@ export function Timeline({ duration, currentTime, segments, selectedId, playingI
 
   const row = (label: string, children: React.ReactNode) => (
     <div className="flex items-center" style={{ height: ROW_H }}>
-      <div className="w-[90px] flex-shrink-0 text-xs text-muted-foreground">{label}</div>
+      <div className="w-[90px] shrink-0 text-xs text-muted-foreground">{label}</div>
       <div className="relative flex-1 bg-timeline-track" style={{ height: ROW_H }} onClick={seekFromEvent}>
         {children}
       </div>
@@ -44,7 +44,7 @@ export function Timeline({ duration, currentTime, segments, selectedId, playingI
             onClick={(e) => { e.stopPropagation(); onSelect(s.id); }}
             title={s.correctedText}
             className={cn(
-              'absolute box-border cursor-pointer overflow-hidden whitespace-nowrap rounded-sm border border-segment-border px-1 text-[11px] text-white',
+              'absolute box-border cursor-pointer overflow-hidden whitespace-nowrap rounded-sm border border-segment-border px-1 text-[11px] text-foreground',
               s.id === playingId ? 'bg-segment-playing' : s.id === selectedId ? 'bg-segment-selected' : 'bg-segment',
               s.enabled === false && 'opacity-35',
             )}
@@ -57,8 +57,8 @@ export function Timeline({ duration, currentTime, segments, selectedId, playingI
       {row('クリック', allClicks.map((c, i) => (
         <div
           key={i}
-          className="absolute size-2 bg-click-marker"
-          style={{ top: ROW_H / 2 - 4, left: `calc(${timeToPercent(c.t, duration)}% - 4px)`, transform: 'rotate(45deg)' }}
+          className="absolute size-2 rotate-45 bg-click-marker"
+          style={{ top: ROW_H / 2 - 4, left: `calc(${timeToPercent(c.t, duration)}% - 4px)` }}
         />
       )))}
       {/* 再生ヘッド */}
