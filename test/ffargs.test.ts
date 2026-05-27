@@ -36,6 +36,7 @@ describe('segmentVideoArgs', () => {
     expect(s).toContain('-ss 1');
     expect(s).toContain('-t 2');
     expect(s).toContain('stop_duration=3');
+    expect(s).toContain('fps=30'); // fps が vf チェーンに注入される
     expect(s).toContain('libx264');
     expect(args[args.length - 1]).toBe('o.mp4');
   });
