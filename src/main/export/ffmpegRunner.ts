@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process';
 /** ffmpeg を実行する。非0終了で reject（stderr 末尾付き）。 */
 export function runFfmpeg(ffmpegPath: string, args: string[], signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
-    const child = spawn(ffmpegPath, args);
+    const child = spawn(ffmpegPath, args, { windowsHide: true });
     const onAbort = () => child.kill();
     signal?.addEventListener('abort', onAbort, { once: true });
     let tail = '';
@@ -20,7 +20,7 @@ export function runFfmpeg(ffmpegPath: string, args: string[], signal?: AbortSign
 /** ffprobe を実行し stdout を返す。 */
 export function runProbe(ffprobePath: string, args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
-    const child = spawn(ffprobePath, args);
+    const child = spawn(ffprobePath, args, { windowsHide: true });
     let out = '';
     let tail = '';
     child.stdout.on('data', (c: Buffer) => { out += c.toString(); });

@@ -8,6 +8,7 @@ import {
 } from './ffargs';
 
 export interface ExportOptions {
+  /** 与えられた全 segments をそのまま書き出す（enabled での絞り込みは呼び出し側／フェーズ6の責務）。 */
   segments: Segment[];
   projectDir: string; // assets/raw.webm, tts/<id>.wav がある
   outPath: string;    // 最終 MP4
