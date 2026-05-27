@@ -63,13 +63,13 @@ export class TtsPreviewController {
     return last ? last.slotStart + last.slotDuration : 0;
   }
 
-  /** positionTime から再生する（末尾到達後は先頭から）。 */
-  async play(video: HTMLVideoElement): Promise<void> {
+  /** positionTime から再生する（末尾到達後は先頭から）。実際に再生を開始したら true。 */
+  async play(video: HTMLVideoElement): Promise<boolean> {
     const ctx = this.ensureCtx();
-    if (this.slots.length === 0) return;
+    if (this.slots.length === 0) return false;
     const gen = ++this.playGen;
     if (ctx.state === 'suspended') await ctx.resume();
-    if (gen !== this.playGen) return; // resume 待ちの間に pause/stop/別の play が来た
+    if (gen !== this.playGen) return false; // resume 待ちの間に pause/stop/別の play が来た
     this.teardown();
     this.video = video;
     this.playing = true;
@@ -101,6 +101,7 @@ export class TtsPreviewController {
     try { await video.play(); } catch { /* autoplay 制限は無視 */ }
 
     this.rafId = requestAnimationFrame(this.tick);
+    return true;
   }
 
   pause(): void {

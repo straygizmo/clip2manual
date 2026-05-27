@@ -25,6 +25,7 @@ export function PreviewPlayer({
   const [mode, setMode] = useState<'original' | 'tts'>('original');
   const [ttsLoading, setTtsLoading] = useState(false);
   const resolvingDuration = useRef(false);
+  const modeGen = useRef(0);
 
   // onActiveSegment を最新参照で呼ぶ（コントローラは一度だけ生成する）
   const onActiveRef = useRef(onActiveSegment);
@@ -89,8 +90,8 @@ export function PreviewPlayer({
       c.pause();
       setPlaying(false);
     } else {
-      await c.play(v);
-      setPlaying(true);
+      const started = await c.play(v); // play 中に中断されたら false
+      setPlaying(started);
     }
   };
 
@@ -98,6 +99,7 @@ export function PreviewPlayer({
 
   const switchMode = async (next: 'original' | 'tts') => {
     if (next === mode) return;
+    const gen = ++modeGen.current; // load の await 中に別の切替が来たら無効化
     videoRef.current?.pause();
     audioRef.current?.pause();
     controllerRef.current?.stop();
@@ -106,6 +108,7 @@ export function PreviewPlayer({
       setTtsLoading(true);
       try { await controllerRef.current?.load(segments, projectDir); } finally { setTtsLoading(false); }
     }
+    if (gen !== modeGen.current) return; // 後続の切替が優先
     setMode(next);
   };
 
