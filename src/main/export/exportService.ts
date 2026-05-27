@@ -8,7 +8,7 @@ import {
 } from './ffargs';
 
 export interface ExportOptions {
-  /** 与えられた全 segments をそのまま書き出す（enabled での絞り込みは呼び出し側／フェーズ6の責務）。 */
+  /** 書き出し対象の segments。enabled での絞り込みは computePreviewTimeline 内で行われる。 */
   segments: Segment[];
   projectDir: string; // assets/raw.webm, tts/<id>.wav がある
   outPath: string;    // 最終 MP4
@@ -40,6 +40,7 @@ export async function runExport(opts: ExportOptions): Promise<void> {
   }
 
   const slots = computePreviewTimeline(opts.segments, clipDurations);
+  if (slots.length === 0) throw new Error('No enabled segments to export'); // 全カット等
   const total = slots.length + 3; // segments + 2 concat + 1 mux
   let done = 0;
   const tick = () => { done += 1; opts.onProgress?.(Math.round((done / total) * 100)); };

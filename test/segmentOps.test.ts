@@ -51,6 +51,7 @@ describe('splitAt', () => {
     expect(r[1].videoStart).toBe(2);
     expect(r[1].videoEnd).toBe(4);
     expect(r[1].correctedText).toBe('');
+    expect(r[1].originalText).toBe('');
     expect(r[1].clicks.map((c) => c.t)).toEqual([3]);
     expect(r[1].ttsAudio).toBeNull();
   });

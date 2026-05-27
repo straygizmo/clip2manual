@@ -39,6 +39,7 @@ export function splitAt(segments: Segment[], id: string, atTime: number, newId: 
     ...seg,
     id: newId,
     videoStart: atTime,
+    originalText: '',
     correctedText: '',
     clicks: seg.clicks.filter((c) => c.t >= atTime),
     ttsAudio: null,

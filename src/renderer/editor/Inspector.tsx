@@ -73,7 +73,7 @@ export function Inspector({ segment, index, speakers, projectDir, ttsNonce, busy
   };
   const onToggleCut = () => applyOps(toggleEnabled(segments, segment.id), segment.id);
   const onMerge = () => applyOps(mergeWithNext(segments, segment.id), segment.id);
-  const onSplit = () => applyOps(splitAt(segments, segment.id, state.currentTime, `seg-${Date.now()}`), segment.id);
+  const onSplit = () => applyOps(splitAt(segments, segment.id, state.currentTime, `seg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`), segment.id);
 
   const speakerLabel = speakers.find((s) => s.speaker === segment.voice.speaker)?.label;
   // 話者一覧が未取得でも現在の speaker を選べるよう、フォールバック option を用意する。
@@ -158,9 +158,9 @@ export function Inspector({ segment, index, speakers, projectDir, ttsNonce, busy
 
       <hr style={{ margin: '12px 0', border: 'none', borderTop: '1px solid #eee' }} />
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button onClick={onToggleCut}>{segment.enabled ? 'カット' : '有効化'}</button>
-        <button onClick={onSplit} disabled={!canSplit}>分割（再生ヘッド位置）</button>
-        <button onClick={onMerge} disabled={isLast}>次と結合</button>
+        <button onClick={onToggleCut} disabled={busy}>{segment.enabled ? 'カット' : '有効化'}</button>
+        <button onClick={onSplit} disabled={!canSplit || busy}>分割（再生ヘッド位置）</button>
+        <button onClick={onMerge} disabled={isLast || busy}>次と結合</button>
       </div>
       {!segment.enabled && (
         <div style={{ fontSize: 12, color: '#c87', marginTop: 6 }}>カット中（プレビュー/書き出しで除外）</div>
