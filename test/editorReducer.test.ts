@@ -127,4 +127,22 @@ describe('editorReducer', () => {
     expect(s.tts.status).toBe('error');
     expect(s.tts.error).toBe('boom');
   });
+
+  it('SET_SEGMENTS replaces segments and updates selection when selectId given', () => {
+    let s = editorReducer(initialEditorState, { type: 'OPEN_PROJECT', projectDir: '/d', project: makeProject() });
+    s = editorReducer(s, { type: 'TRANSCRIPTION_DONE', segments: [seg, { ...seg, id: 'seg-002' }] });
+    s = editorReducer(s, { type: 'SET_SEGMENTS', segments: [{ ...seg, id: 'seg-002' }], selectId: 'seg-002' });
+    expect(s.project!.segments).toHaveLength(1);
+    expect(s.project!.segments[0].id).toBe('seg-002');
+    expect(s.selectedSegmentId).toBe('seg-002');
+  });
+
+  it('SET_SEGMENTS without selectId keeps the current selection', () => {
+    let s = editorReducer(initialEditorState, { type: 'OPEN_PROJECT', projectDir: '/d', project: makeProject() });
+    s = editorReducer(s, { type: 'TRANSCRIPTION_DONE', segments: [seg] });
+    s = editorReducer(s, { type: 'SELECT_SEGMENT', id: 'seg-001' });
+    s = editorReducer(s, { type: 'SET_SEGMENTS', segments: [{ ...seg, correctedText: 'x' }] });
+    expect(s.selectedSegmentId).toBe('seg-001');
+    expect(s.project!.segments[0].correctedText).toBe('x');
+  });
 });

@@ -38,7 +38,8 @@ export type EditorAction =
   | { type: 'TTS_START' }
   | { type: 'TTS_PROGRESS'; percent: number }
   | { type: 'TTS_GENERATED'; segments: Segment[] }
-  | { type: 'TTS_ERROR'; error: string };
+  | { type: 'TTS_ERROR'; error: string }
+  | { type: 'SET_SEGMENTS'; segments: Segment[]; selectId?: string };
 
 export const initialEditorState: EditorState = {
   screen: 'home',
@@ -139,6 +140,13 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       };
     case 'TTS_ERROR':
       return { ...state, tts: { status: 'error', percent: 0, error: action.error } };
+    case 'SET_SEGMENTS':
+      if (!state.project) return state;
+      return {
+        ...state,
+        project: { ...state.project, segments: action.segments },
+        selectedSegmentId: action.selectId ?? state.selectedSegmentId,
+      };
     default:
       return state;
   }
