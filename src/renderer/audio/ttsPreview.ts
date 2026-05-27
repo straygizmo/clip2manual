@@ -6,7 +6,8 @@ export interface TtsPreviewCallbacks {
   onEnded?: () => void;
 }
 
-const DRIFT_THRESHOLD = 0.25; // 秒。これを超えたら映像時刻を補正する。
+const DRIFT_THRESHOLD = 0.25; // 秒。再生中、これを超えたら映像時刻を補正する。
+const FREEZE_THRESHOLD = 0.05; // 秒。フリーズ中、映像を videoEnd に保つ許容差。
 
 /**
  * 各セグメントの TTS を Web Audio でスケジュール再生し（音声=master clock）、
@@ -23,6 +24,7 @@ export class TtsPreviewController {
   private playing = false;
   private video: HTMLVideoElement | null = null;
   private activeId: string | null = null;
+  private playGen = 0; // play() の await 中に pause/stop が来た場合の無効化用
 
   constructor(private cb: TtsPreviewCallbacks = {}) {}
 
@@ -65,7 +67,9 @@ export class TtsPreviewController {
   async play(video: HTMLVideoElement): Promise<void> {
     const ctx = this.ensureCtx();
     if (this.slots.length === 0) return;
+    const gen = ++this.playGen;
     if (ctx.state === 'suspended') await ctx.resume();
+    if (gen !== this.playGen) return; // resume 待ちの間に pause/stop/別の play が来た
     this.teardown();
     this.video = video;
     this.playing = true;
@@ -100,15 +104,20 @@ export class TtsPreviewController {
   }
 
   pause(): void {
+    this.playGen++; // 進行中の play() の await を無効化する
+    // 直近の rAF からの誤差を避け、音声クロックから正確な位置を確定する
+    if (this.ctx && this.playing) this.positionTime = this.ctx.currentTime - this.startCtxTime;
     this.teardown();
     this.playing = false;
     this.video?.pause();
   }
 
   stop(): void {
+    this.playGen++;
     this.teardown();
     this.playing = false;
     this.video?.pause();
+    this.video = null;
     this.positionTime = 0;
     if (this.activeId !== null) {
       this.activeId = null;
@@ -146,7 +155,7 @@ export class TtsPreviewController {
         if (Math.abs(this.video.currentTime - target) > DRIFT_THRESHOLD) this.video.currentTime = target;
       } else {
         if (!this.video.paused) this.video.pause();
-        if (Math.abs(this.video.currentTime - slot.videoEnd) > 0.05) this.video.currentTime = slot.videoEnd;
+        if (Math.abs(this.video.currentTime - slot.videoEnd) > FREEZE_THRESHOLD) this.video.currentTime = slot.videoEnd;
       }
     }
     this.rafId = requestAnimationFrame(this.tick);
