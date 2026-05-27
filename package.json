@@ -10,7 +10,8 @@
     "test": "vitest run",
     "typecheck": "tsc --build --force tsconfig.json",
     "setup:whisper": "node scripts/setup-whisper.mjs",
-    "setup:voicevox": "node scripts/setup-voicevox.mjs"
+    "setup:voicevox": "node scripts/setup-voicevox.mjs",
+    "setup:ffmpeg": "node scripts/setup-ffmpeg.mjs"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
