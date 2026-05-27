@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { ScreenRecorder } from '../recorder/screenRecorder';
 import { useEditor } from '../state/editorStore';
 import type { RecentProject } from '../global';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Circle, Square, FolderOpen, Play } from 'lucide-react';
 
 export function HomeScreen() {
   const { dispatch } = useEditor();
@@ -55,31 +58,49 @@ export function HomeScreen() {
   }
 
   return (
-    <div style={{ padding: 24, fontFamily: 'sans-serif', maxWidth: 720, margin: '0 auto' }}>
-      <h1>clip2manual</h1>
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-        <button onClick={recording ? onStop : onStart}>
-          {recording ? '■ 停止して保存' : '● 録画開始'}
-        </button>
-        <button onClick={() => window.api.openProjectDialog().then((r) => r && dispatch({ type: 'OPEN_PROJECT', projectDir: r.projectDir, project: r.project }))}>
+    <div className="mx-auto max-w-3xl p-8">
+      <h1 className="mb-6 text-2xl font-semibold tracking-tight">clip2manual</h1>
+      <div className="flex items-center gap-3">
+        <Button
+          onClick={recording ? onStop : onStart}
+          variant={recording ? 'destructive' : 'default'}
+          size="lg"
+        >
+          {recording ? <Square className="size-4" /> : <Circle className="size-4 fill-current" />}
+          {recording ? '停止して保存' : '録画開始'}
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={() =>
+            window.api
+              .openProjectDialog()
+              .then((r) => r && dispatch({ type: 'OPEN_PROJECT', projectDir: r.projectDir, project: r.project }))
+          }
+        >
+          <FolderOpen className="size-4" />
           フォルダから開く
-        </button>
+        </Button>
       </div>
-      <p>{status}</p>
+      <p className="mt-3 text-sm text-muted-foreground">{status}</p>
 
-      <h2 style={{ fontSize: 16 }}>最近の録画</h2>
+      <h2 className="mt-8 mb-3 text-base font-medium">最近の録画</h2>
       {recent.length === 0 ? (
-        <p style={{ color: '#888' }}>まだ録画がありません。</p>
+        <p className="text-sm text-muted-foreground">まだ録画がありません。</p>
       ) : (
-        <ul style={{ listStyle: 'none', padding: 0 }}>
+        <div className="flex flex-col gap-2">
           {recent.map((r) => (
-            <li key={r.projectDir} style={{ padding: '8px 0', borderBottom: '1px solid #eee' }}>
-              <button onClick={() => open(r.projectDir)} style={{ marginRight: 8 }}>開く</button>
-              {r.name}
-              <span style={{ color: '#999', marginLeft: 8, fontSize: 12 }}>{new Date(r.createdAt).toLocaleString()}</span>
-            </li>
+            <Card key={r.projectDir} className="flex flex-row items-center gap-3 p-3">
+              <Button size="sm" variant="ghost" onClick={() => open(r.projectDir)}>
+                <Play className="size-4" />
+                開く
+              </Button>
+              <span className="font-medium">{r.name}</span>
+              <span className="ml-auto text-xs text-muted-foreground">
+                {new Date(r.createdAt).toLocaleString()}
+              </span>
+            </Card>
           ))}
-        </ul>
+        </div>
       )}
     </div>
   );
