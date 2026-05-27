@@ -3,6 +3,8 @@ import { computePreviewTimeline, type PreviewSlot } from '../editor/previewTimel
 
 export interface TtsPreviewCallbacks {
   onActiveSegment?: (segmentId: string | null) => void;
+  /** 現在の映像時刻（秒）。再生ヘッド表示用。 */
+  onTime?: (videoTime: number) => void;
   onEnded?: () => void;
 }
 
@@ -151,6 +153,8 @@ export class TtsPreviewController {
       }
       const offset = previewTime - slot.slotStart;
       const videoSpan = Math.max(0, slot.videoEnd - slot.videoStart);
+      // 再生ヘッド用に現在の映像時刻を通知（区間内は進行、区間外は末尾で保持）
+      this.cb.onTime?.(offset < videoSpan ? slot.videoStart + offset : slot.videoEnd);
       if (offset < videoSpan) {
         if (this.video.paused) void this.video.play().catch(() => {});
         const target = slot.videoStart + offset;

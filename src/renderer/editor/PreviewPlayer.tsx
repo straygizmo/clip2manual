@@ -27,14 +27,17 @@ export function PreviewPlayer({
   const resolvingDuration = useRef(false);
   const modeGen = useRef(0);
 
-  // onActiveSegment を最新参照で呼ぶ（コントローラは一度だけ生成する）
+  // コールバックを最新参照で呼ぶ（コントローラは一度だけ生成する）
   const onActiveRef = useRef(onActiveSegment);
   onActiveRef.current = onActiveSegment;
+  const onTimeRef = useRef(onTime);
+  onTimeRef.current = onTime;
 
   const controllerRef = useRef<TtsPreviewController | null>(null);
   if (!controllerRef.current) {
     controllerRef.current = new TtsPreviewController({
       onActiveSegment: (id) => onActiveRef.current(id),
+      onTime: (t) => onTimeRef.current(t),
       onEnded: () => setPlaying(false),
     });
   }
