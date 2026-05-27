@@ -1,22 +1,45 @@
-import { useRef, useState, type RefObject } from 'react';
+import { useRef, useState, useEffect, type RefObject } from 'react';
+import { type Segment } from '../../shared/types';
+import { TtsPreviewController } from '../audio/ttsPreview';
 
 interface Props {
   videoRef: RefObject<HTMLVideoElement>;
   audioRef: RefObject<HTMLAudioElement>;
   videoUrl: string;
   audioUrl: string;
+  segments: Segment[];
+  projectDir: string;
   onTime: (t: number) => void;
   onDuration: (d: number) => void;
+  onActiveSegment: (id: string | null) => void;
 }
 
-/** 映像(c2m:raw.webm)を主時計に、ナレーション音声(narration.webm)を従わせて同期再生する。 */
-export function PreviewPlayer({ videoRef, audioRef, videoUrl, audioUrl, onTime, onDuration }: Props) {
+/**
+ * 元音声モード: 映像(c2m:raw.webm)を主時計に narration を従わせて再生（従来どおり）。
+ * TTSモード: TtsPreviewController が TTS を Web Audio でスケジュールし映像を駆動する。
+ */
+export function PreviewPlayer({
+  videoRef, audioRef, videoUrl, audioUrl, segments, projectDir, onTime, onDuration, onActiveSegment,
+}: Props) {
   const [playing, setPlaying] = useState(false);
-  // MediaRecorder 製の WebM は Duration メタデータを持たず、video.duration が
-  // Infinity になる（末尾まで再生/シークするまで確定しない）。読み込み時に一度
-  // 末尾へシークして実尺を確定させる。その間は時刻通知・音声同期を抑止する。
+  const [mode, setMode] = useState<'original' | 'tts'>('original');
+  const [ttsLoading, setTtsLoading] = useState(false);
   const resolvingDuration = useRef(false);
 
+  // onActiveSegment を最新参照で呼ぶ（コントローラは一度だけ生成する）
+  const onActiveRef = useRef(onActiveSegment);
+  onActiveRef.current = onActiveSegment;
+
+  const controllerRef = useRef<TtsPreviewController | null>(null);
+  if (!controllerRef.current) {
+    controllerRef.current = new TtsPreviewController({
+      onActiveSegment: (id) => onActiveRef.current(id),
+      onEnded: () => setPlaying(false),
+    });
+  }
+  useEffect(() => () => { controllerRef.current?.dispose(); controllerRef.current = null; }, []);
+
+  // MediaRecorder 製 WebM は duration メタが無く Infinity になるため、末尾シークで実尺を確定する。
   const resolveDuration = (v: HTMLVideoElement) => {
     if (Number.isFinite(v.duration) && v.duration > 0) {
       onDuration(v.duration);
@@ -31,7 +54,7 @@ export function PreviewPlayer({ videoRef, audioRef, videoUrl, audioUrl, onTime, 
       v.currentTime = 0;
     };
     v.addEventListener('durationchange', onDurationChange);
-    v.currentTime = 1e101; // 末尾へ飛ばして duration を確定させる
+    v.currentTime = 1e101;
   };
 
   const syncAudioTime = () => {
@@ -41,7 +64,9 @@ export function PreviewPlayer({ videoRef, audioRef, videoUrl, audioUrl, onTime, 
     if (v && a && Math.abs(a.currentTime - v.currentTime) > 0.15) a.currentTime = v.currentTime;
   };
 
-  const togglePlay = () => {
+  const inTts = () => mode === 'tts';
+
+  const toggleOriginal = () => {
     const v = videoRef.current;
     const a = audioRef.current;
     if (!v) return;
@@ -56,6 +81,36 @@ export function PreviewPlayer({ videoRef, audioRef, videoUrl, audioUrl, onTime, 
     }
   };
 
+  const toggleTts = async () => {
+    const c = controllerRef.current;
+    const v = videoRef.current;
+    if (!c || !v) return;
+    if (playing) {
+      c.pause();
+      setPlaying(false);
+    } else {
+      await c.play(v);
+      setPlaying(true);
+    }
+  };
+
+  const togglePlay = () => { if (inTts()) void toggleTts(); else toggleOriginal(); };
+
+  const switchMode = async (next: 'original' | 'tts') => {
+    if (next === mode) return;
+    videoRef.current?.pause();
+    audioRef.current?.pause();
+    controllerRef.current?.stop();
+    setPlaying(false);
+    if (next === 'tts') {
+      setTtsLoading(true);
+      try { await controllerRef.current?.load(segments, projectDir); } finally { setTtsLoading(false); }
+    }
+    setMode(next);
+  };
+
+  const missing = mode === 'tts' && !ttsLoading && (controllerRef.current?.missingClips() ?? false);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#000' }}>
       <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
@@ -65,18 +120,23 @@ export function PreviewPlayer({ videoRef, audioRef, videoUrl, audioUrl, onTime, 
           style={{ maxWidth: '100%', maxHeight: '100%' }}
           onLoadedMetadata={(e) => resolveDuration(e.currentTarget)}
           onTimeUpdate={(e) => {
-            if (resolvingDuration.current) return;
+            if (inTts() || resolvingDuration.current) return;
             onTime(e.currentTarget.currentTime);
             syncAudioTime();
           }}
-          onPlay={() => { if (audioRef.current) void audioRef.current.play(); setPlaying(true); }}
-          onPause={() => { audioRef.current?.pause(); setPlaying(false); }}
-          onSeeked={syncAudioTime}
+          onPlay={() => { if (inTts()) return; if (audioRef.current) void audioRef.current.play(); setPlaying(true); }}
+          onPause={() => { if (inTts()) return; audioRef.current?.pause(); setPlaying(false); }}
+          onSeeked={() => { if (inTts()) return; syncAudioTime(); }}
         />
         <audio ref={audioRef} src={audioUrl} />
       </div>
-      <div style={{ padding: 8, background: '#222', color: '#fff' }}>
-        <button onClick={togglePlay}>{playing ? '⏸ 一時停止' : '▶ 再生'}</button>
+      <div style={{ padding: 8, background: '#222', color: '#fff', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <button onClick={togglePlay} disabled={ttsLoading}>{playing ? '⏸ 一時停止' : '▶ 再生'}</button>
+        <span style={{ fontSize: 12, color: '#bbb' }}>音声:</span>
+        <button onClick={() => void switchMode('original')} disabled={mode === 'original'}>元音声</button>
+        <button onClick={() => void switchMode('tts')} disabled={mode === 'tts'}>TTS</button>
+        {ttsLoading && <span style={{ fontSize: 12, color: '#bbb' }}>TTS読み込み中…</span>}
+        {missing && <span style={{ fontSize: 12, color: '#caa' }}>TTS未生成のセグメントは無音で再生されます</span>}
       </div>
     </div>
   );

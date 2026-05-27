@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useEditor } from '../state/editorStore';
 import { PreviewPlayer } from './PreviewPlayer';
 import { Timeline } from './Timeline';
@@ -15,6 +15,8 @@ export function EditorLayout() {
   const [speakers, setSpeakers] = useState<SpeakerOption[]>([]);
   const speakersLoading = useRef(false);
   const [ttsNonce, setTtsNonce] = useState(0);
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const handleActiveSegment = useCallback((id: string | null) => setPlayingId(id), []);
 
   // 文字起こし・TTS 進捗イベントの購読
   useEffect(() => {
@@ -162,8 +164,11 @@ export function EditorLayout() {
           audioRef={audioRef}
           videoUrl={projectAssetUrl('assets/raw.webm', state.projectDir ?? '')}
           audioUrl={projectAssetUrl('assets/narration.webm', state.projectDir ?? '')}
+          segments={segments}
+          projectDir={state.projectDir ?? ''}
           onTime={(t) => dispatch({ type: 'SET_CURRENT_TIME', time: t })}
           onDuration={setDuration}
+          onActiveSegment={handleActiveSegment}
         />
         <div style={{ borderLeft: '1px solid #ddd', overflow: 'auto' }}>
           <Inspector
@@ -185,6 +190,7 @@ export function EditorLayout() {
         currentTime={state.currentTime}
         segments={segments}
         selectedId={state.selectedSegmentId}
+        playingId={playingId}
         onSelect={(id) => dispatch({ type: 'SELECT_SEGMENT', id })}
         onSeek={seek}
       />

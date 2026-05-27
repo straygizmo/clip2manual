@@ -7,13 +7,14 @@ interface Props {
   currentTime: number;
   segments: Segment[];
   selectedId: string | null;
+  playingId: string | null;
   onSelect: (id: string) => void;
   onSeek: (time: number) => void;
 }
 
 const ROW_H = 28;
 
-export function Timeline({ duration, currentTime, segments, selectedId, onSelect, onSeek }: Props) {
+export function Timeline({ duration, currentTime, segments, selectedId, playingId, onSelect, onSeek }: Props) {
   const seekFromEvent = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const ratio = (e.clientX - rect.left) / rect.width;
@@ -44,7 +45,7 @@ export function Timeline({ duration, currentTime, segments, selectedId, onSelect
             style={{
               position: 'absolute', top: 3, height: ROW_H - 6,
               left: `${r.left}%`, width: `${r.width}%`,
-              background: s.id === selectedId ? '#4a90d9' : '#3a3a3a',
+              background: s.id === playingId ? '#2e8b57' : s.id === selectedId ? '#4a90d9' : '#3a3a3a',
               border: '1px solid #555', borderRadius: 3, overflow: 'hidden',
               fontSize: 11, color: '#fff', whiteSpace: 'nowrap', cursor: 'pointer', padding: '0 4px',
               boxSizing: 'border-box',
