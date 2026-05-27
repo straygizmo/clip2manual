@@ -3,6 +3,14 @@ import { type Segment, type SpeakerOption } from '../../shared/types';
 import { useEditor } from '../state/editorStore';
 import { toggleEnabled, mergeWithNext, splitAt } from '../state/segmentOps';
 import { projectAssetUrl } from './assetUrl';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
+import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Scissors, SplitSquareHorizontal, ArrowDownToLine, RotateCcw } from 'lucide-react';
 
 function fmt(t: number): string {
   const m = Math.floor(t / 60);
@@ -29,7 +37,7 @@ export function Inspector({ segment, index, speakers, projectDir, ttsNonce, busy
   useEffect(() => { setSaveError(null); }, [segment?.id]);
 
   if (!segment) {
-    return <div style={{ padding: 12, color: '#888' }}>セグメントを選択してください</div>;
+    return <div className="p-3 text-sm text-muted-foreground">セグメントを選択してください</div>;
   }
 
   const edited = segment.correctedText !== segment.originalText;
@@ -82,90 +90,98 @@ export function Inspector({ segment, index, speakers, projectDir, ttsNonce, busy
     : [{ speaker: segment.voice.speaker, label: `話者 ${segment.voice.speaker}` }];
 
   return (
-    <div style={{ padding: 12, fontSize: 13 }}>
-      <h3 style={{ marginTop: 0 }}>
+    <div className="p-3 text-sm">
+      <h3 className="mt-0 text-sm font-semibold">
         セグメント {index + 1}（{segment.id}）
         {edited && (
-          <span style={{ marginLeft: 8, fontSize: 11, color: '#0a7', border: '1px solid #0a7', borderRadius: 4, padding: '1px 5px' }}>
-            編集済み
-          </span>
+          <Badge variant="outline" className="ml-2">編集済み</Badge>
         )}
       </h3>
-      <div style={{ color: '#666', marginBottom: 8 }}>
+      <div className="mb-2 text-muted-foreground">
         {fmt(segment.videoStart)} – {fmt(segment.videoEnd)}
       </div>
 
-      <div style={{ color: '#666', fontSize: 12, marginBottom: 4 }}>元の文字起こし（読み取り専用）</div>
-      <div style={{ whiteSpace: 'pre-wrap', background: '#f5f5f5', padding: 8, borderRadius: 4 }}>
+      <div className="mb-1 text-xs text-muted-foreground">元の文字起こし（読み取り専用）</div>
+      <div className="mt-1 whitespace-pre-wrap rounded-md bg-muted p-2 text-muted-foreground">
         {segment.originalText || '（無音/空）'}
       </div>
 
-      <div style={{ color: '#666', fontSize: 12, marginTop: 8, marginBottom: 4 }}>補正テキスト</div>
-      <textarea
+      <Label className="mt-2 mb-1 block text-xs text-muted-foreground">補正テキスト</Label>
+      <Textarea
         value={segment.correctedText}
         onChange={(e) => dispatch({ type: 'EDIT_SEGMENT_TEXT', id: segment.id, text: e.target.value })}
         onBlur={onBlurText}
         disabled={busy}
         rows={4}
-        style={{ width: '100%', boxSizing: 'border-box', fontSize: 13, fontFamily: 'inherit', padding: 8, borderRadius: 4 }}
       />
-      <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
-        <button onClick={revert} disabled={!edited || busy}>元に戻す</button>
-        {saveError && <span style={{ color: '#c00', fontSize: 12 }}>保存に失敗しました</span>}
+      <div className="mt-1.5 flex items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={revert} disabled={!edited || busy}>
+          <RotateCcw className="size-4" />元に戻す
+        </Button>
+        {saveError && <span className="text-xs text-destructive">保存に失敗しました</span>}
       </div>
 
-      <hr style={{ margin: '12px 0', border: 'none', borderTop: '1px solid #eee' }} />
+      <Separator className="my-3" />
 
-      <div style={{ color: '#666', fontSize: 12, marginBottom: 4 }}>声（話者）</div>
-      <select
-        value={segment.voice.speaker}
-        onMouseDown={onLoadSpeakers}
-        onChange={(e) => setVoice({ speaker: Number(e.target.value), speed: segment.voice.speed })}
+      <Label className="mb-1 block text-xs text-muted-foreground">声（話者）</Label>
+      <Select
+        value={String(segment.voice.speaker)}
+        onValueChange={(v) => setVoice({ speaker: Number(v), speed: segment.voice.speed })}
         disabled={busy}
-        style={{ width: '100%', padding: 4 }}
+        onOpenChange={(o) => { if (o) onLoadSpeakers(); }}
       >
-        {options.map((o) => (
-          <option key={o.speaker} value={o.speaker}>{o.label}</option>
-        ))}
-      </select>
+        <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          {options.map((o) => (
+            <SelectItem key={o.speaker} value={String(o.speaker)}>{o.label}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
 
-      <div style={{ color: '#666', fontSize: 12, marginTop: 8, marginBottom: 4 }}>速度（{segment.voice.speed.toFixed(2)}）</div>
-      <input
-        type="range" min={0.5} max={2} step={0.05}
-        value={segment.voice.speed}
-        onChange={(e) => setVoice({ speaker: segment.voice.speaker, speed: Number(e.target.value) })}
+      <Label className="mt-2 mb-1 block text-xs text-muted-foreground">速度（{segment.voice.speed.toFixed(2)}）</Label>
+      <Slider
+        min={0.5}
+        max={2}
+        step={0.05}
+        value={[segment.voice.speed]}
+        onValueChange={([v]) => setVoice({ speaker: segment.voice.speaker, speed: v })}
         disabled={busy}
-        style={{ width: '100%' }}
       />
 
-      <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
-        <button onClick={() => onGenerate(segment.id)} disabled={busy || segment.correctedText.trim() === ''}>
+      <div className="mt-2.5 flex items-center gap-2">
+        <Button size="sm" onClick={() => onGenerate(segment.id)} disabled={busy || segment.correctedText.trim() === ''}>
           {segment.ttsAudio ? '再生成' : '生成'}
-        </button>
-        <span style={{ fontSize: 12, color: segment.ttsAudio ? '#0a7' : '#999' }}>
+        </Button>
+        <span className={segment.ttsAudio ? 'text-xs text-primary' : 'text-xs text-muted-foreground'}>
           {segment.ttsAudio ? '生成済み' : '未生成'}
         </span>
       </div>
 
       {segment.ttsAudio && (
-        <div style={{ marginTop: 8 }}>
-          <audio controls src={`${projectAssetUrl(segment.ttsAudio, projectDir)}&v=${ttsNonce}`} style={{ width: '100%' }} />
-          <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>
+        <div className="mt-2">
+          <audio controls src={`${projectAssetUrl(segment.ttsAudio, projectDir)}&v=${ttsNonce}`} className="w-full" />
+          <div className="mt-1 text-xs text-muted-foreground">
             クレジット: VOICEVOX{speakerLabel ? `：${speakerLabel}` : ''}
           </div>
         </div>
       )}
 
-      <hr style={{ margin: '12px 0', border: 'none', borderTop: '1px solid #eee' }} />
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button onClick={onToggleCut} disabled={busy}>{segment.enabled ? 'カット' : '有効化'}</button>
-        <button onClick={onSplit} disabled={!canSplit || busy}>分割（再生ヘッド位置）</button>
-        <button onClick={onMerge} disabled={isLast || busy}>次と結合</button>
+      <Separator className="my-3" />
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" onClick={onToggleCut} disabled={busy}>
+          <Scissors className="size-4" />{segment.enabled ? 'カット' : '有効化'}
+        </Button>
+        <Button variant="outline" size="sm" onClick={onSplit} disabled={!canSplit || busy}>
+          <SplitSquareHorizontal className="size-4" />分割（再生ヘッド位置）
+        </Button>
+        <Button variant="outline" size="sm" onClick={onMerge} disabled={isLast || busy}>
+          <ArrowDownToLine className="size-4" />次と結合
+        </Button>
       </div>
       {!segment.enabled && (
-        <div style={{ fontSize: 12, color: '#c87', marginTop: 6 }}>カット中（プレビュー/書き出しで除外）</div>
+        <div className="mt-1.5 text-xs text-amber-500">カット中（プレビュー/書き出しで除外）</div>
       )}
-      <div style={{ color: '#666', fontSize: 12, marginTop: 8 }}>クリック {segment.clicks.length} 件</div>
+      <div className="mt-2 text-xs text-muted-foreground">クリック {segment.clicks.length} 件</div>
     </div>
   );
 }
