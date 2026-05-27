@@ -39,6 +39,10 @@ declare global {
       ttsGenerateAll: () => Promise<{ segments: Segment[] }>;
       cancelTts: () => Promise<{ ok: true }>;
       onTtsProgress: (cb: (percent: number) => void) => () => void;
+      exportDialog: () => Promise<string | null>;
+      runExport: (outPath: string) => Promise<{ ok: true; outPath: string; credit: string }>;
+      cancelExport: () => Promise<{ ok: true }>;
+      onExportProgress: (cb: (percent: number) => void) => () => void;
     };
   }
 }

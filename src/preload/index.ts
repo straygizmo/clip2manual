@@ -38,4 +38,12 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('tts:progress', listener);
     return () => { ipcRenderer.removeListener('tts:progress', listener); };
   },
+  exportDialog: () => ipcRenderer.invoke('export:dialog'),
+  runExport: (outPath: string) => ipcRenderer.invoke('export:run', outPath),
+  cancelExport: () => ipcRenderer.invoke('export:cancel'),
+  onExportProgress: (cb: (percent: number) => void) => {
+    const listener = (_e: unknown, percent: number) => cb(percent);
+    ipcRenderer.on('export:progress', listener);
+    return () => { ipcRenderer.removeListener('export:progress', listener); };
+  },
 });
