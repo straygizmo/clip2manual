@@ -12,6 +12,7 @@
     "src/shared",
     "src/renderer/editor/timelineGeometry.ts",
     "src/renderer/editor/assetUrl.ts",
+    "src/renderer/editor/previewTimeline.ts",
     "src/renderer/state/editorReducer.ts",
     "test",
     "electron.vite.config.ts",
