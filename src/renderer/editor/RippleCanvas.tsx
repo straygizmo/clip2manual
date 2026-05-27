@@ -39,9 +39,12 @@ export function RippleCanvas({ videoRef, clicks }: Props) {
         }
         const w = canvas.width;
         const t = video.currentTime;
-        if (t < prevT - 0.05) {
-          active.length = 0; // 後方シーク: リセット（二重発火防止）
-        } else if (t > prevT) {
+        const dt = t - prevT;
+        // 後方シーク or 大きな前方ジャンプ（シーク/初回フレーム/TTSのセグメント境界）はリセットし、
+        // 通常の前進フレームでのみ交差したクリックを発火する（前方シークで大量に発火しないように）。
+        if (dt < -0.05 || dt > 1.5) {
+          active.length = 0;
+        } else if (dt > 0) {
           for (const c of clicksCrossed(clicksRef.current, prevT, t)) {
             active.push({ x: c.x, y: c.y, firedAt: performance.now() });
           }
