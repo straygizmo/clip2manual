@@ -6,6 +6,11 @@ import { Inspector } from './Inspector';
 import { decodeToWav } from '../audio/decodeToWav';
 import { projectAssetUrl } from './assetUrl';
 import { type SpeakerOption } from '../../shared/types';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Slider } from '@/components/ui/slider';
+import { Separator } from '@/components/ui/separator';
+import { ArrowLeft, FileText, Mic, Download, X } from 'lucide-react';
 
 export function EditorLayout() {
   const { state, dispatch } = useEditor();
@@ -137,52 +142,91 @@ export function EditorLayout() {
     : [{ speaker: defaultSpeaker, label: `話者 ${defaultSpeaker}` }];
 
   return (
-    <div style={{ display: 'grid', gridTemplateRows: '48px 1fr auto', height: '100vh' }}>
+    <div className="grid h-screen grid-rows-[48px_1fr_auto]">
       {/* ツールバー */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '0 12px', background: '#2a2a2a', color: '#fff', flexWrap: 'wrap' }}>
-        <button onClick={() => dispatch({ type: 'CLOSE_PROJECT' })}>← ホーム</button>
-        <strong>{project.meta.name}</strong>
-        <button onClick={runTranscription} disabled={tx.status === 'running'}>
+      <div className="flex flex-wrap items-center gap-2 bg-toolbar px-3 text-foreground">
+        <Button variant="ghost" size="sm" onClick={() => dispatch({ type: 'CLOSE_PROJECT' })}>
+          <ArrowLeft className="size-4" />ホーム
+        </Button>
+        <span className="font-semibold">{project.meta.name}</span>
+
+        <Separator orientation="vertical" className="h-6" />
+
+        <Button variant="secondary" size="sm" onClick={runTranscription} disabled={tx.status === 'running'}>
+          <FileText className="size-4" />
           {tx.status === 'running' ? `文字起こし中… ${tx.percent}%` : '文字起こし'}
-        </button>
-        {tx.status === 'running' && <button onClick={() => window.api.cancelTranscription()}>キャンセル</button>}
-        {tx.status === 'error' && <span style={{ color: '#f88' }}>失敗: {tx.error}</span>}
+        </Button>
+        {tx.status === 'running' && (
+          <Button variant="ghost" size="sm" onClick={() => window.api.cancelTranscription()}>
+            <X className="size-4" />キャンセル
+          </Button>
+        )}
+        {tx.status === 'error' && <span className="text-xs text-destructive">失敗: {tx.error}</span>}
 
-        <span style={{ marginLeft: 12, fontSize: 12, color: '#bbb' }}>既定の声</span>
-        <select
-          value={defaultSpeaker}
-          onMouseDown={loadSpeakers}
-          onChange={(e) => setDefaultVoice({ speaker: Number(e.target.value), speed: defaultSpeed })}
+        <Separator orientation="vertical" className="h-6" />
+
+        <span className="text-xs text-muted-foreground">既定の声</span>
+        <Select
+          value={String(defaultSpeaker)}
+          onValueChange={(v) => setDefaultVoice({ speaker: Number(v), speed: defaultSpeed })}
           disabled={ttsBusy}
+          onOpenChange={(o) => { if (o) loadSpeakers(); }}
         >
-          {defaultOptions.map((o) => (
-            <option key={o.speaker} value={o.speaker}>{o.label}</option>
-          ))}
-        </select>
-        <input
-          type="range" min={0.5} max={2} step={0.05} value={defaultSpeed}
-          onChange={(e) => setDefaultVoice({ speaker: defaultSpeaker, speed: Number(e.target.value) })}
+          <SelectTrigger className="h-8 w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {defaultOptions.map((o) => (
+              <SelectItem key={o.speaker} value={String(o.speaker)}>{o.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Slider
+          className="w-32"
+          min={0.5}
+          max={2}
+          step={0.05}
+          value={[defaultSpeed]}
+          onValueChange={([v]) => setDefaultVoice({ speaker: defaultSpeaker, speed: v })}
           disabled={ttsBusy}
-          title={`速度 ${defaultSpeed.toFixed(2)}`}
         />
-        <button onClick={applyDefaultToAll} disabled={ttsBusy}>全セグメントに適用</button>
+        <Button variant="secondary" size="sm" onClick={applyDefaultToAll} disabled={ttsBusy}>
+          全セグメントに適用
+        </Button>
 
-        <button onClick={generateAll} disabled={ttsBusy}>
+        <Separator orientation="vertical" className="h-6" />
+
+        <Button variant="secondary" size="sm" onClick={generateAll} disabled={ttsBusy}>
+          <Mic className="size-4" />
           {ttsBusy ? `生成中… ${tts.percent}%` : '全セグメント生成'}
-        </button>
-        {ttsBusy && <button onClick={() => window.api.cancelTts()}>キャンセル</button>}
-        {ttsBusy && tts.percent === 0 && <span style={{ fontSize: 12, color: '#bbb' }}>（初回はエンジン起動に時間がかかります）</span>}
-        {tts.status === 'error' && <span style={{ color: '#f88' }}>TTS失敗: {tts.error}</span>}
-        <button onClick={doExport} disabled={exportState.status === 'running'}>
+        </Button>
+        {ttsBusy && (
+          <Button variant="ghost" size="sm" onClick={() => window.api.cancelTts()}>
+            <X className="size-4" />キャンセル
+          </Button>
+        )}
+        {ttsBusy && tts.percent === 0 && (
+          <span className="text-xs text-muted-foreground">（初回はエンジン起動に時間がかかります）</span>
+        )}
+        {tts.status === 'error' && <span className="text-xs text-destructive">TTS失敗: {tts.error}</span>}
+
+        <Separator orientation="vertical" className="h-6" />
+
+        <Button size="sm" onClick={doExport} disabled={exportState.status === 'running'}>
+          <Download className="size-4" />
           {exportState.status === 'running' ? `書き出し中… ${exportState.percent}%` : '書き出し'}
-        </button>
-        {exportState.status === 'running' && <button onClick={() => window.api.cancelExport()}>キャンセル</button>}
-        {exportState.status === 'done' && <span style={{ fontSize: 12, color: '#9c9' }}>{exportState.message}</span>}
-        {exportState.status === 'error' && <span style={{ color: '#f88' }}>書き出し失敗: {exportState.message}</span>}
+        </Button>
+        {exportState.status === 'running' && (
+          <Button variant="ghost" size="sm" onClick={() => window.api.cancelExport()}>
+            <X className="size-4" />キャンセル
+          </Button>
+        )}
+        {exportState.status === 'done' && <span className="text-xs text-primary">{exportState.message}</span>}
+        {exportState.status === 'error' && <span className="text-xs text-destructive">書き出し失敗: {exportState.message}</span>}
       </div>
 
       {/* 中央＝プレビュー / 右＝インスペクタ */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', minHeight: 0 }}>
+      <div className="grid min-h-0 grid-cols-[1fr_320px]">
         <PreviewPlayer
           videoRef={videoRef}
           audioRef={audioRef}
@@ -194,7 +238,7 @@ export function EditorLayout() {
           onDuration={setDuration}
           onActiveSegment={handleActiveSegment}
         />
-        <div style={{ borderLeft: '1px solid #ddd', overflow: 'auto' }}>
+        <div className="overflow-auto border-l border-border">
           <Inspector
             segment={selected}
             index={selectedIndex}
