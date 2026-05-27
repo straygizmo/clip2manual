@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computePreviewTimeline, previewTotalDuration, TAIL_PAUSE } from '../src/renderer/editor/previewTimeline';
+import { computePreviewTimeline, previewTotalDuration, TAIL_PAUSE } from '../src/shared/previewTimeline';
 import { type Segment } from '../src/shared/types';
 
 function seg(id: string, start: number, end: number): Segment {

@@ -1,4 +1,4 @@
-import { type Segment } from '../../shared/types';
+import { type Segment } from './types';
 
 export interface PreviewSlot {
   segmentId: string;

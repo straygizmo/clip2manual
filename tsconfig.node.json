@@ -12,7 +12,6 @@
     "src/shared",
     "src/renderer/editor/timelineGeometry.ts",
     "src/renderer/editor/assetUrl.ts",
-    "src/renderer/editor/previewTimeline.ts",
     "src/renderer/editor/rippleOverlay.ts",
     "src/renderer/state/editorReducer.ts",
     "test",

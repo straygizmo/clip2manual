@@ -1,5 +1,5 @@
 import { type Segment } from '../../shared/types';
-import { computePreviewTimeline, type PreviewSlot } from '../editor/previewTimeline';
+import { computePreviewTimeline, type PreviewSlot } from '../../shared/previewTimeline';
 
 export interface TtsPreviewCallbacks {
   onActiveSegment?: (segmentId: string | null) => void;
