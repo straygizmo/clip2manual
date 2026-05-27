@@ -2,6 +2,8 @@ import { useRef, useState, useEffect, type RefObject } from 'react';
 import { type Segment } from '../../shared/types';
 import { TtsPreviewController } from '../audio/ttsPreview';
 import { RippleCanvas } from './RippleCanvas';
+import { Button } from '@/components/ui/button';
+import { Play, Pause } from 'lucide-react';
 
 interface Props {
   videoRef: RefObject<HTMLVideoElement>;
@@ -120,13 +122,13 @@ export function PreviewPlayer({
   const clicks = segments.flatMap((s) => s.clicks);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#000' }}>
-      <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
-        <div style={{ position: 'relative', display: 'inline-block', maxWidth: '100%', maxHeight: '100%' }}>
+    <div className="flex h-full flex-col bg-preview-bg">
+      <div className="flex flex-1 items-center justify-center overflow-hidden">
+        <div className="relative inline-block max-h-full max-w-full">
           <video
             ref={videoRef}
             src={videoUrl}
-            style={{ display: 'block', maxWidth: '100%', maxHeight: '100%' }}
+            className="block max-h-full max-w-full"
             onLoadedMetadata={(e) => resolveDuration(e.currentTarget)}
             onTimeUpdate={(e) => {
               if (inTts() || resolvingDuration.current) return;
@@ -141,13 +143,13 @@ export function PreviewPlayer({
         </div>
         <audio ref={audioRef} src={audioUrl} />
       </div>
-      <div style={{ padding: 8, background: '#222', color: '#fff', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <button onClick={togglePlay} disabled={ttsLoading}>{playing ? '⏸ 一時停止' : '▶ 再生'}</button>
-        <span style={{ fontSize: 12, color: '#bbb' }}>音声:</span>
-        <button onClick={() => void switchMode('original')} disabled={mode === 'original' || ttsLoading}>元音声</button>
-        <button onClick={() => void switchMode('tts')} disabled={mode === 'tts' || ttsLoading}>TTS</button>
-        {ttsLoading && <span style={{ fontSize: 12, color: '#bbb' }}>TTS読み込み中…</span>}
-        {missing && <span style={{ fontSize: 12, color: '#caa' }}>TTS未生成のセグメントは無音で再生されます</span>}
+      <div className="flex flex-wrap items-center gap-3 bg-muted px-3 py-2 text-foreground">
+        <Button size="sm" onClick={togglePlay} disabled={ttsLoading}>{playing ? <Pause className="size-4" /> : <Play className="size-4" />}{playing ? '一時停止' : '再生'}</Button>
+        <span className="text-xs text-muted-foreground">音声:</span>
+        <Button size="sm" variant={mode === 'original' ? 'default' : 'secondary'} onClick={() => void switchMode('original')} disabled={mode === 'original' || ttsLoading}>元音声</Button>
+        <Button size="sm" variant={mode === 'tts' ? 'default' : 'secondary'} onClick={() => void switchMode('tts')} disabled={mode === 'tts' || ttsLoading}>TTS</Button>
+        {ttsLoading && <span className="text-xs text-muted-foreground">TTS読み込み中…</span>}
+        {missing && <span className="text-xs text-amber-500">TTS未生成のセグメントは無音で再生されます</span>}
       </div>
     </div>
   );
