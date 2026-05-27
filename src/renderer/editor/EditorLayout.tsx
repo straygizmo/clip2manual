@@ -190,6 +190,7 @@ export function EditorLayout() {
           onValueChange={([v]) => setDefaultVoice({ speaker: defaultSpeaker, speed: v })}
           disabled={ttsBusy}
         />
+        <span className="w-10 text-right text-xs tabular-nums text-muted-foreground">{defaultSpeed.toFixed(2)}x</span>
         <Button variant="secondary" size="sm" onClick={applyDefaultToAll} disabled={ttsBusy}>
           全セグメントに適用
         </Button>
