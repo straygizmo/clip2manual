@@ -1,0 +1,104 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --radius: 0.5rem;
+  --background: #1e1e1e;
+  --foreground: #e0e0e0;
+  --card: #252525;
+  --card-foreground: #e0e0e0;
+  --popover: #252525;
+  --popover-foreground: #e0e0e0;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --secondary: #2f2f2f;
+  --secondary-foreground: #e0e0e0;
+  --muted: #2a2a2a;
+  --muted-foreground: #9a9a9a;
+  --accent: #333a4d;
+  --accent-foreground: #e0e0e0;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #3a3a3a;
+  --input: #3a3a3a;
+  --ring: #3b82f6;
+  --toolbar: #2a2a2a;
+  --preview-bg: #000000;
+  --timeline-bg: #111111;
+  --timeline-track: #1b1b1b;
+  --segment: #3a3a3a;
+  --segment-selected: #4a90d9;
+  --segment-playing: #2e8b57;
+  --segment-border: #555555;
+  --playhead: #ee5544;
+  --click-marker: #e0a030;
+}
+
+.dark {
+  --background: #1e1e1e;
+  --foreground: #e0e0e0;
+  --card: #252525;
+  --card-foreground: #e0e0e0;
+  --popover: #252525;
+  --popover-foreground: #e0e0e0;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --secondary: #2f2f2f;
+  --secondary-foreground: #e0e0e0;
+  --muted: #2a2a2a;
+  --muted-foreground: #9a9a9a;
+  --accent: #333a4d;
+  --accent-foreground: #e0e0e0;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #3a3a3a;
+  --input: #3a3a3a;
+  --ring: #3b82f6;
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-toolbar: var(--toolbar);
+  --color-preview-bg: var(--preview-bg);
+  --color-timeline-bg: var(--timeline-bg);
+  --color-timeline-track: var(--timeline-track);
+  --color-segment: var(--segment);
+  --color-segment-selected: var(--segment-selected);
+  --color-segment-playing: var(--segment-playing);
+  --color-segment-border: var(--segment-border);
+  --color-playhead: var(--playhead);
+  --color-click-marker: var(--click-marker);
+}
+
+@layer base {
+  * { border-color: var(--border); }
+  html, body, #root { height: 100%; margin: 0; }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+}
