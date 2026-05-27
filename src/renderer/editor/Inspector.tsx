@@ -69,7 +69,7 @@ export function Inspector({ segment, index, speakers, projectDir, ttsNonce, busy
 
   const applyOps = (next: Segment[], selectId: string) => {
     dispatch({ type: 'SET_SEGMENTS', segments: next, selectId });
-    void window.api.updateSegments(next);
+    void persist(next); // persist は失敗時に saveError を立てる（テキスト編集と同じ扱い）
   };
   const onToggleCut = () => applyOps(toggleEnabled(segments, segment.id), segment.id);
   const onMerge = () => applyOps(mergeWithNext(segments, segment.id), segment.id);
