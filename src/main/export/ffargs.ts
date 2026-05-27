@@ -36,11 +36,14 @@ export function segmentVideoArgs(input: { rawPath: string; slot: PreviewSlot; ou
   const { rawPath, slot, outPath, fps } = input;
   const videoSpan = Math.max(0, slot.videoEnd - slot.videoStart);
   const freeze = Math.max(0, slot.slotDuration - videoSpan);
+  // -ss/-t は -i より前（入力オプション）に置く。こうすると入力が videoSpan で EOF になり、
+  // tpad が末尾フレームをクローンできる。-t を -i より後（出力オプション）にすると tpad が
+  // EOF を受け取れずフリーズが発生しない。
   return [
     '-y',
     '-ss', String(slot.videoStart),
-    '-i', rawPath,
     '-t', String(videoSpan),
+    '-i', rawPath,
     '-vf', `tpad=stop_mode=clone:stop_duration=${freeze},fps=${fps},setpts=PTS-STARTPTS`,
     '-an',
     ...VIDEO_ENCODE,

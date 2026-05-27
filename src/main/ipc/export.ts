@@ -22,6 +22,7 @@ export function registerExportIpc(): void {
   });
 
   ipcMain.handle('export:run', async (event, outPath: string) => {
+    if (currentAbort) throw new Error('書き出しが既に実行中です');
     const { dir, project } = projectSession.getCurrent();
     const { ffmpegPath, ffprobePath } = resolveFfmpeg();
     const tmpDir = path.join(dir, 'export-tmp');

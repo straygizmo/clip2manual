@@ -38,6 +38,8 @@ describe('segmentVideoArgs', () => {
     expect(s).toContain('stop_duration=3');
     expect(s).toContain('fps=30'); // fps が vf チェーンに注入される
     expect(s).toContain('libx264');
+    // -t は -i より前（入力オプション）。そうでないと tpad のフリーズが効かない。
+    expect(args.indexOf('-t')).toBeLessThan(args.indexOf('-i'));
     expect(args[args.length - 1]).toBe('o.mp4');
   });
 });
