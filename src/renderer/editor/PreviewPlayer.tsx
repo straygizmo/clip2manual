@@ -136,8 +136,8 @@ export function PreviewPlayer({
       <div style={{ padding: 8, background: '#222', color: '#fff', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <button onClick={togglePlay} disabled={ttsLoading}>{playing ? '⏸ 一時停止' : '▶ 再生'}</button>
         <span style={{ fontSize: 12, color: '#bbb' }}>音声:</span>
-        <button onClick={() => void switchMode('original')} disabled={mode === 'original'}>元音声</button>
-        <button onClick={() => void switchMode('tts')} disabled={mode === 'tts'}>TTS</button>
+        <button onClick={() => void switchMode('original')} disabled={mode === 'original' || ttsLoading}>元音声</button>
+        <button onClick={() => void switchMode('tts')} disabled={mode === 'tts' || ttsLoading}>TTS</button>
         {ttsLoading && <span style={{ fontSize: 12, color: '#bbb' }}>TTS読み込み中…</span>}
         {missing && <span style={{ fontSize: 12, color: '#caa' }}>TTS未生成のセグメントは無音で再生されます</span>}
       </div>

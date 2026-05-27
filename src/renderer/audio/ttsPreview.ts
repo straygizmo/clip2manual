@@ -99,6 +99,7 @@ export class TtsPreviewController {
     const videoSpan = Math.max(0, slot.videoEnd - slot.videoStart);
     video.currentTime = slot.videoStart + Math.min(Math.max(0, from - slot.slotStart), videoSpan);
     try { await video.play(); } catch { /* autoplay 制限は無視 */ }
+    if (gen !== this.playGen) return false; // video.play() 待ちの間に中断された
 
     this.rafId = requestAnimationFrame(this.tick);
     return true;
