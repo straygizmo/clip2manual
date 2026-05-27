@@ -15,6 +15,9 @@ export function EditorLayout() {
   const [speakers, setSpeakers] = useState<SpeakerOption[]>([]);
   const speakersLoading = useRef(false);
   const [ttsNonce, setTtsNonce] = useState(0);
+  const [exportState, setExportState] = useState<{ status: 'idle' | 'running' | 'done' | 'error'; percent: number; message: string }>(
+    { status: 'idle', percent: 0, message: '' },
+  );
   const [playingId, setPlayingId] = useState<string | null>(null);
   const handleActiveSegment = useCallback((id: string | null) => setPlayingId(id), []);
 
@@ -26,7 +29,10 @@ export function EditorLayout() {
     const unsubTts = window.api.onTtsProgress((p) =>
       dispatch({ type: 'TTS_PROGRESS', percent: p }),
     );
-    return () => { unsubTx(); unsubTts(); };
+    const unsubExport = window.api.onExportProgress((p) =>
+      setExportState((s) => (s.status === 'running' ? { ...s, percent: p } : s)),
+    );
+    return () => { unsubTx(); unsubTts(); unsubExport(); };
   }, [dispatch]);
 
   const project = state.project;
@@ -93,6 +99,18 @@ export function EditorLayout() {
     }
   }
 
+  async function doExport() {
+    const outPath = await window.api.exportDialog();
+    if (!outPath) return;
+    setExportState({ status: 'running', percent: 0, message: '' });
+    try {
+      const res = await window.api.runExport(outPath);
+      setExportState({ status: 'done', percent: 100, message: `書き出し完了: ${res.outPath}（${res.credit}）` });
+    } catch (err) {
+      setExportState({ status: 'error', percent: 0, message: String(err) });
+    }
+  }
+
   function setDefaultVoice(voice: { speaker: number; speed: number }) {
     dispatch({ type: 'SET_DEFAULT_VOICE', voice });
     // 直後の state は未更新なので settings をその場で組み立てて保存する
@@ -155,6 +173,12 @@ export function EditorLayout() {
         {ttsBusy && <button onClick={() => window.api.cancelTts()}>キャンセル</button>}
         {ttsBusy && tts.percent === 0 && <span style={{ fontSize: 12, color: '#bbb' }}>（初回はエンジン起動に時間がかかります）</span>}
         {tts.status === 'error' && <span style={{ color: '#f88' }}>TTS失敗: {tts.error}</span>}
+        <button onClick={doExport} disabled={exportState.status === 'running'}>
+          {exportState.status === 'running' ? `書き出し中… ${exportState.percent}%` : '書き出し'}
+        </button>
+        {exportState.status === 'running' && <button onClick={() => window.api.cancelExport()}>キャンセル</button>}
+        {exportState.status === 'done' && <span style={{ fontSize: 12, color: '#9c9' }}>{exportState.message}</span>}
+        {exportState.status === 'error' && <span style={{ color: '#f88' }}>書き出し失敗: {exportState.message}</span>}
       </div>
 
       {/* 中央＝プレビュー / 右＝インスペクタ */}
