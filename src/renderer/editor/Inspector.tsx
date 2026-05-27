@@ -92,11 +92,12 @@ export function Inspector({ segment, index, speakers, projectDir, ttsNonce, busy
         value={segment.correctedText}
         onChange={(e) => dispatch({ type: 'EDIT_SEGMENT_TEXT', id: segment.id, text: e.target.value })}
         onBlur={onBlurText}
+        disabled={busy}
         rows={4}
         style={{ width: '100%', boxSizing: 'border-box', fontSize: 13, fontFamily: 'inherit', padding: 8, borderRadius: 4 }}
       />
       <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
-        <button onClick={revert} disabled={!edited}>元に戻す</button>
+        <button onClick={revert} disabled={!edited || busy}>元に戻す</button>
         {saveError && <span style={{ color: '#c00', fontSize: 12 }}>保存に失敗しました</span>}
       </div>
 
@@ -107,6 +108,7 @@ export function Inspector({ segment, index, speakers, projectDir, ttsNonce, busy
         value={segment.voice.speaker}
         onMouseDown={onLoadSpeakers}
         onChange={(e) => setVoice({ speaker: Number(e.target.value), speed: segment.voice.speed })}
+        disabled={busy}
         style={{ width: '100%', padding: 4 }}
       >
         {options.map((o) => (
@@ -119,6 +121,7 @@ export function Inspector({ segment, index, speakers, projectDir, ttsNonce, busy
         type="range" min={0.5} max={2} step={0.05}
         value={segment.voice.speed}
         onChange={(e) => setVoice({ speaker: segment.voice.speaker, speed: Number(e.target.value) })}
+        disabled={busy}
         style={{ width: '100%' }}
       />
 
@@ -134,9 +137,9 @@ export function Inspector({ segment, index, speakers, projectDir, ttsNonce, busy
       {segment.ttsAudio && (
         <div style={{ marginTop: 8 }}>
           <audio controls src={`${projectAssetUrl(segment.ttsAudio, projectDir)}&v=${ttsNonce}`} style={{ width: '100%' }} />
-          {speakerLabel && (
-            <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>クレジット: VOICEVOX：{speakerLabel}</div>
-          )}
+          <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>
+            クレジット: VOICEVOX{speakerLabel ? `：${speakerLabel}` : ''}
+          </div>
         </div>
       )}
 

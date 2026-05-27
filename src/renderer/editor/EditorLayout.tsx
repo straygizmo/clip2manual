@@ -133,6 +133,7 @@ export function EditorLayout() {
           value={defaultSpeaker}
           onMouseDown={loadSpeakers}
           onChange={(e) => setDefaultVoice({ speaker: Number(e.target.value), speed: defaultSpeed })}
+          disabled={ttsBusy}
         >
           {defaultOptions.map((o) => (
             <option key={o.speaker} value={o.speaker}>{o.label}</option>
@@ -141,9 +142,10 @@ export function EditorLayout() {
         <input
           type="range" min={0.5} max={2} step={0.05} value={defaultSpeed}
           onChange={(e) => setDefaultVoice({ speaker: defaultSpeaker, speed: Number(e.target.value) })}
+          disabled={ttsBusy}
           title={`速度 ${defaultSpeed.toFixed(2)}`}
         />
-        <button onClick={applyDefaultToAll}>全セグメントに適用</button>
+        <button onClick={applyDefaultToAll} disabled={ttsBusy}>全セグメントに適用</button>
 
         <button onClick={generateAll} disabled={ttsBusy}>
           {ttsBusy ? `生成中… ${tts.percent}%` : '全セグメント生成'}

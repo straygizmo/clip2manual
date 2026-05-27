@@ -46,9 +46,13 @@ async function main() {
     if (!existsSync(sevenZrPath)) await download(SEVENZR_URL, sevenZrPath);
     await download(ENGINE_URL, archivePath);
     mkdirSync(engineRoot, { recursive: true });
-    // 7zr x: .7z.001 を指定すると（分割でも）まとめて展開する。
-    execFileSync(sevenZrPath, ['x', archivePath, `-o${engineRoot}`, '-y'], { stdio: 'inherit' });
-    await rm(archivePath, { force: true });
+    try {
+      // 7zr x: .7z.001 を指定すると（分割でも）まとめて展開する。
+      execFileSync(sevenZrPath, ['x', archivePath, `-o${engineRoot}`, '-y'], { stdio: 'inherit' });
+    } finally {
+      // 展開の成否に関わらず大容量アーカイブを残さない（再試行時のディスク圧迫を防ぐ）。
+      await rm(archivePath, { force: true });
+    }
     runPath = findNamed(engineRoot, 'run.exe');
   }
   if (!runPath) {
