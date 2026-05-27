@@ -127,12 +127,15 @@ export class TtsPreviewController {
       this.activeId = null;
       this.cb.onActiveSegment?.(null);
     }
+    // 開いたままの AudioContext は <audio> 要素（元ナレーション）の音声出力を歪ませる
+    // （ノイズ化する）ことがあるため、TTS から離れる際にクローズして音声出力デバイスを
+    // 解放する。decodeToWav と同じ方針。次回 TTS は load() が ctx を作り直す。
+    if (this.ctx && this.ctx.state !== 'closed') void this.ctx.close();
+    this.ctx = null;
   }
 
   dispose(): void {
     this.stop();
-    void this.ctx?.close();
-    this.ctx = null;
   }
 
   private tick = (): void => {
