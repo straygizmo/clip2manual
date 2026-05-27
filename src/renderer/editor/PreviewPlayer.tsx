@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect, type RefObject } from 'react';
 import { type Segment } from '../../shared/types';
 import { TtsPreviewController } from '../audio/ttsPreview';
+import { RippleCanvas } from './RippleCanvas';
 
 interface Props {
   videoRef: RefObject<HTMLVideoElement>;
@@ -116,24 +117,28 @@ export function PreviewPlayer({
   };
 
   const missing = mode === 'tts' && !ttsLoading && (controllerRef.current?.missingClips() ?? false);
+  const clicks = segments.flatMap((s) => s.clicks);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#000' }}>
       <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
-        <video
-          ref={videoRef}
-          src={videoUrl}
-          style={{ maxWidth: '100%', maxHeight: '100%' }}
-          onLoadedMetadata={(e) => resolveDuration(e.currentTarget)}
-          onTimeUpdate={(e) => {
-            if (inTts() || resolvingDuration.current) return;
-            onTime(e.currentTarget.currentTime);
-            syncAudioTime();
-          }}
-          onPlay={() => { if (inTts()) return; if (audioRef.current) void audioRef.current.play(); setPlaying(true); }}
-          onPause={() => { if (inTts()) return; audioRef.current?.pause(); setPlaying(false); }}
-          onSeeked={() => { if (inTts()) return; syncAudioTime(); }}
-        />
+        <div style={{ position: 'relative', display: 'inline-block', maxWidth: '100%', maxHeight: '100%' }}>
+          <video
+            ref={videoRef}
+            src={videoUrl}
+            style={{ display: 'block', maxWidth: '100%', maxHeight: '100%' }}
+            onLoadedMetadata={(e) => resolveDuration(e.currentTarget)}
+            onTimeUpdate={(e) => {
+              if (inTts() || resolvingDuration.current) return;
+              onTime(e.currentTarget.currentTime);
+              syncAudioTime();
+            }}
+            onPlay={() => { if (inTts()) return; if (audioRef.current) void audioRef.current.play(); setPlaying(true); }}
+            onPause={() => { if (inTts()) return; audioRef.current?.pause(); setPlaying(false); }}
+            onSeeked={() => { if (inTts()) return; syncAudioTime(); }}
+          />
+          <RippleCanvas videoRef={videoRef} clicks={clicks} />
+        </div>
         <audio ref={audioRef} src={audioUrl} />
       </div>
       <div style={{ padding: 8, background: '#222', color: '#fff', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
