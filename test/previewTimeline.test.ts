@@ -42,4 +42,13 @@ describe('computePreviewTimeline', () => {
     expect(slots[1].slotDuration).toBeCloseTo(3 + TAIL_PAUSE);
     expect(previewTotalDuration(slots)).toBeCloseTo((3 + TAIL_PAUSE) * 2);
   });
+
+  it('excludes disabled (enabled === false) segments', () => {
+    const slots = computePreviewTimeline(
+      [{ ...seg('seg-001', 0, 2), enabled: false }, seg('seg-002', 2, 4)],
+      new Map(),
+    );
+    expect(slots).toHaveLength(1);
+    expect(slots[0].segmentId).toBe('seg-002');
+  });
 });

@@ -24,6 +24,7 @@ export function computePreviewTimeline(
   const slots: PreviewSlot[] = [];
   let cursor = 0;
   for (const seg of segments) {
+    if (seg.enabled === false) continue; // カット（無効）セグメントは出力に含めない
     const videoSpan = Math.max(0, seg.videoEnd - seg.videoStart);
     const clipDuration = clipDurations.get(seg.id) ?? 0;
     const slotDuration = Math.max(clipDuration, videoSpan) + TAIL_PAUSE;
