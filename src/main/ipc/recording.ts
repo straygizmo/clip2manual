@@ -45,7 +45,12 @@ export function registerRecordingIpc(): void {
     };
     const clicks = buildClickLog(rawEvents, t0Ms, geometry);
 
-    const projectDir = path.join(app.getPath('videos'), 'clip2manual', `rec-${Date.now()}`);
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const stamp =
+      `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}` +
+      `_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+    const projectDir = path.join(app.getPath('videos'), 'clip2manual', `rec-${stamp}`);
     await initProjectDir(projectDir);
     // NOTE: phase 1 transfers the whole recording through IPC as ArrayBuffers. For longer
     // recordings, a later phase should hand off via a temp file path instead of copying bytes over IPC.

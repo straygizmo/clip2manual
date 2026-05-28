@@ -88,7 +88,7 @@ export function HomeScreen() {
       {recent.length === 0 ? (
         <p className="text-sm text-muted-foreground">まだ録画がありません。</p>
       ) : (
-        <div className="flex flex-col gap-2">
+        <div className="flex max-h-52 flex-col gap-2 overflow-y-auto pr-1">
           {recent.map((r) => (
             <Card key={r.projectDir} className="flex flex-row items-center gap-3 p-3">
               <Button size="sm" variant="ghost" onClick={() => open(r.projectDir)}>

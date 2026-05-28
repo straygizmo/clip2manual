@@ -60,7 +60,10 @@ export function DependencyStatus() {
       <ul className="flex flex-col gap-1.5">
         {TOOLS.map((t) => (
           <li key={t} className="flex items-center gap-2 text-sm">
-            <Badge variant={status[t] ? 'secondary' : 'destructive'} className="gap-1">
+            <Badge
+              variant={status[t] ? 'secondary' : 'destructive'}
+              className={status[t] ? 'gap-1 bg-green-500 text-white border-transparent' : 'gap-1'}
+            >
               {status[t] ? <Check className="size-3" /> : <X className="size-3" />}
               {status[t] ? '取得済み' : '未取得'}
             </Badge>
