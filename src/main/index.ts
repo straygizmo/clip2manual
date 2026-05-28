@@ -35,16 +35,24 @@ app.whenReady().then(async () => {
       proxyRules: proxy.proxyRules,
       ...(proxy.proxyBypassRules ? { proxyBypassRules: proxy.proxyBypassRules } : {}),
     });
-    // 407 (Proxy Authentication Required) はここで応答する。
-    // 認証情報は HTTPS_PROXY の URL に user[:pass]@ で埋め込まれた値を使う。
-    if (proxy.username) {
-      app.on('login', (event, _wc, _req, authInfo, callback) => {
-        if (!authInfo.isProxy) return; // サーバ側 401 はスルー
-        event.preventDefault();
-        callback(proxy.username, proxy.password ?? '');
-      });
-    }
+    // 社内プロキシが Basic ではなく NTLM/Negotiate（Windows 統合認証）を要求する場合に備え、
+    // 全ホストで Windows SSO を許可する。Chromium が NTLM/Negotiate チャレンジを受けると
+    // login イベントを介さず透過的に Windows 資格情報で応答する。
+    session.defaultSession.allowNTLMCredentialsForDomains('*');
+    console.log('[proxy] proxyRules=%s, hasCreds=%s', proxy.proxyRules, proxy.username ? 'yes' : 'no');
   }
+
+  // すべての認証チャレンジを観測（切り分け用）。Basic は埋め込み認証で応答、
+  // NTLM/Negotiate は上の allowNTLMCredentialsForDomains が透過処理するためここに来ない想定。
+  app.on('login', (event, _wc, _req, authInfo, callback) => {
+    console.log('[auth challenge]', {
+      isProxy: authInfo.isProxy, scheme: authInfo.scheme, host: authInfo.host, port: authInfo.port, realm: authInfo.realm,
+    });
+    if (!authInfo.isProxy) return;          // サーバ側 401 はスルー
+    if (!proxy?.username) return;           // 資格情報未設定なら既定（キャンセル）に任せる
+    event.preventDefault();
+    callback(proxy.username, proxy.password ?? '');
+  });
 
   // audio: 'loopback' is ignored by the renderer (it calls getDisplayMedia with audio:false);
   // narration is captured separately via getUserMedia (the microphone) in ScreenRecorder.
