@@ -1,28 +1,35 @@
 import { createWriteStream, readdirSync, statSync } from 'node:fs';
+import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { execFileSync } from 'node:child_process';
 
-/** url を dest にダウンロードする。content-length があれば onProgress(0..100) を通知。signal で中断可。 */
+/** url を dest にダウンロードする。content-length があれば onProgress(0..100) を通知。signal で中断可。
+ *  失敗・中断時は部分ファイルを掃除する（dest は最終パスに直接書くため、skip-if-present の取り違えを防ぐ）。 */
 export async function download(
   url: string,
   dest: string,
   onProgress?: (percent: number) => void,
   signal?: AbortSignal,
 ): Promise<void> {
-  const res = await fetch(url, { redirect: 'follow', signal });
-  if (!res.ok || !res.body) throw new Error(`Download failed (${res.status}) for ${url}`);
-  const total = Number(res.headers.get('content-length') || 0);
-  const body = Readable.fromWeb(res.body as Parameters<typeof Readable.fromWeb>[0]);
-  if (onProgress && total > 0) {
-    let received = 0;
-    body.on('data', (c: Buffer) => {
-      received += c.length;
-      onProgress(Math.min(100, Math.round((received / total) * 100)));
-    });
+  try {
+    const res = await fetch(url, { redirect: 'follow', signal });
+    if (!res.ok || !res.body) throw new Error(`Download failed (${res.status}) for ${url}`);
+    const total = Number(res.headers.get('content-length') || 0);
+    const body = Readable.fromWeb(res.body as Parameters<typeof Readable.fromWeb>[0]);
+    if (onProgress && total > 0) {
+      let received = 0;
+      body.on('data', (c: Buffer) => {
+        received += c.length;
+        onProgress(Math.min(100, Math.round((received / total) * 100)));
+      });
+    }
+    await pipeline(body, createWriteStream(dest));
+  } catch (err) {
+    await rm(dest, { force: true });
+    throw err;
   }
-  await pipeline(body, createWriteStream(dest));
 }
 
 /** PowerShell Expand-Archive で zip を展開する（追加依存なし）。 */

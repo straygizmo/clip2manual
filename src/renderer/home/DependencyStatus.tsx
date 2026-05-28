@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,7 @@ export function DependencyStatus() {
   const [status, setStatus] = useState<Record<Tool, boolean> | null>(null);
   const [installing, setInstalling] = useState(false);
   const [progress, setProgress] = useState<{ tool: string; percent: number } | null>(null);
+  const cancelledRef = useRef(false);
 
   useEffect(() => { void window.api.setupStatus().then(setStatus); }, []);
   useEffect(() => window.api.onSetupProgress((p) => setProgress(p)), []);
@@ -27,17 +28,27 @@ export function DependencyStatus() {
   const missing = TOOLS.filter((t) => !status[t]);
 
   const onDownload = async () => {
+    cancelledRef.current = false;
     setInstalling(true);
     try {
       const next = await window.api.runSetup();
       setStatus(next);
       toast.success('依存関係の準備が完了しました');
     } catch (e) {
-      toast.error('ダウンロードに失敗しました', { description: String(e) });
+      if (cancelledRef.current) {
+        toast.info('ダウンロードをキャンセルしました');
+      } else {
+        toast.error('ダウンロードに失敗しました', { description: String(e) });
+      }
     } finally {
       setInstalling(false);
       setProgress(null);
     }
+  };
+
+  const onCancel = () => {
+    cancelledRef.current = true;
+    void window.api.cancelSetup();
   };
 
   return (
@@ -63,7 +74,7 @@ export function DependencyStatus() {
               <Loader2 className="size-4 animate-spin" />
               {progress ? `${LABEL[progress.tool as Tool] ?? progress.tool} 取得中…` : '準備中…'}
             </span>
-            <Button size="sm" variant="ghost" onClick={() => void window.api.cancelSetup()}>
+            <Button size="sm" variant="ghost" onClick={onCancel}>
               キャンセル
             </Button>
           </div>
