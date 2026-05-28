@@ -4,8 +4,10 @@ import { type Segment } from '../../shared/types';
 import { computePreviewTimeline } from '../../shared/previewTimeline';
 import {
   probeDurationArgs, parseProbeDuration, probeFpsArgs, parseFps,
+  probeResolutionArgs, parseResolution,
   segmentVideoArgs, segmentAudioArgs, concatArgs, muxArgs,
 } from './ffargs';
+import { generateRippleFramesForSlot, type GenerateRippleFramesInput } from './rippleFrames';
 
 export interface ExportOptions {
   /** 書き出し対象の segments。enabled での絞り込みは computePreviewTimeline 内で行われる。 */
@@ -16,6 +18,10 @@ export interface ExportOptions {
   credit: string;     // メタデータ comment
   runFfmpeg: (args: string[]) => Promise<void>;
   runProbe: (args: string[]) => Promise<string>;
+  /** デフォルトは本物の generateRippleFramesForSlot。テストでモック可。 */
+  generateRippleFrames?: (
+    input: GenerateRippleFramesInput,
+  ) => Promise<{ pattern: string; fps: number } | null>;
   onProgress?: (percent: number) => void;
   signal?: AbortSignal;
 }
@@ -31,6 +37,7 @@ export async function runExport(opts: ExportOptions): Promise<void> {
   await fs.mkdir(opts.tmpDir, { recursive: true });
 
   const fps = parseFps(await opts.runProbe(probeFpsArgs(raw)));
+  const { width: videoW, height: videoH } = parseResolution(await opts.runProbe(probeResolutionArgs(raw)));
 
   const clipDurations = new Map<string, number>();
   for (const s of opts.segments) {
@@ -45,15 +52,28 @@ export async function runExport(opts: ExportOptions): Promise<void> {
   let done = 0;
   const tick = () => { done += 1; opts.onProgress?.(Math.round((done / total) * 100)); };
 
+  const generate = opts.generateRippleFrames ?? generateRippleFramesForSlot;
+
   const videoParts: string[] = [];
   const audioParts: string[] = [];
   for (const slot of slots) {
     if (opts.signal?.aborted) throw new Error('Export cancelled');
+    const segment = opts.segments.find((s) => s.id === slot.segmentId);
+    const clicks = segment?.clicks ?? [];
+    const ripple = await generate({
+      slot,
+      clicks,
+      fps,
+      videoW,
+      videoH,
+      outDir: path.join(opts.tmpDir, `${slot.segmentId}_ripple`),
+      signal: opts.signal,
+    });
+
     const vOut = path.join(opts.tmpDir, `${slot.segmentId}.mp4`);
     const aOut = path.join(opts.tmpDir, `${slot.segmentId}.wav`);
-    const segment = opts.segments.find((s) => s.id === slot.segmentId);
     const clipPath = segment && segment.ttsAudio ? path.join(opts.projectDir, segment.ttsAudio) : null;
-    await opts.runFfmpeg(segmentVideoArgs({ rawPath: raw, slot, outPath: vOut, fps }));
+    await opts.runFfmpeg(segmentVideoArgs({ rawPath: raw, slot, outPath: vOut, fps, ripple: ripple ?? undefined }));
     await opts.runFfmpeg(segmentAudioArgs({ clipPath, slotDuration: slot.slotDuration, outPath: aOut }));
     videoParts.push(vOut);
     audioParts.push(aOut);
