@@ -62,6 +62,7 @@ export interface ProjectSettings {
   timingMode: TimingMode;
   llm: LLMSettings;
   tts: TTSSettings;
+  showSubtitles: boolean;
 }
 
 export interface ProjectMeta {
@@ -94,6 +95,7 @@ export function createProject(params: {
       timingMode: 'video-follows-audio',
       llm: { provider: 'anthropic', model: 'claude-opus-4-7' },
       tts: { defaultSpeaker: 3, defaultSpeed: 1.0 },
+      showSubtitles: true,
     },
     segments: [],
   };
@@ -117,5 +119,10 @@ export function validateProject(value: unknown): Project {
   if (!Array.isArray(p.segments)) {
     throw new Error('project.json "segments" must be an array');
   }
-  return value as Project;
+  const settings = p.settings as Record<string, unknown>;
+  const normalizedSettings = {
+    ...settings,
+    showSubtitles: typeof settings.showSubtitles === 'boolean' ? settings.showSubtitles : true,
+  };
+  return { ...(value as Project), settings: normalizedSettings as ProjectSettings };
 }

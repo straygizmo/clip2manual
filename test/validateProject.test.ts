@@ -12,8 +12,9 @@ const valid = createProject({
 });
 
 describe('validateProject', () => {
-  it('returns the project unchanged when valid', () => {
-    expect(validateProject(valid)).toBe(valid);
+  it('returns the project equivalently when valid', () => {
+    const out = validateProject(valid);
+    expect(out).toEqual(valid);
   });
 
   it('throws on non-object input', () => {
@@ -32,5 +33,24 @@ describe('validateProject', () => {
 
   it('throws when segments is not an array', () => {
     expect(() => validateProject({ ...valid, segments: {} })).toThrow(/segments/i);
+  });
+
+  it('defaults showSubtitles to true when missing', () => {
+    const { showSubtitles, ...rest } = valid.settings;
+    const input = { ...valid, settings: rest };
+    const out = validateProject(input);
+    expect(out.settings.showSubtitles).toBe(true);
+  });
+
+  it('preserves explicit showSubtitles=false', () => {
+    const input = { ...valid, settings: { ...valid.settings, showSubtitles: false } };
+    const out = validateProject(input);
+    expect(out.settings.showSubtitles).toBe(false);
+  });
+
+  it('coerces non-boolean showSubtitles to true', () => {
+    const input = { ...valid, settings: { ...valid.settings, showSubtitles: 'yes' as unknown as boolean } };
+    const out = validateProject(input);
+    expect(out.settings.showSubtitles).toBe(true);
   });
 });
