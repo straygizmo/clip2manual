@@ -27,6 +27,7 @@ export function EditorLayout() {
   );
   const [playingId, setPlayingId] = useState<string | null>(null);
   const handleActiveSegment = useCallback((id: string | null) => setPlayingId(id), []);
+  const [requestedMode, setRequestedMode] = useState<{ mode: 'original' | 'tts' } | null>(null);
 
   // 文字起こし・TTS 進捗イベントの購読
   useEffect(() => {
@@ -104,6 +105,7 @@ export function EditorLayout() {
 
   async function generateAll() {
     dispatch({ type: 'TTS_START' });
+    setRequestedMode({ mode: 'tts' });
     try {
       void loadSpeakers();
       const { segments: result } = await window.api.ttsGenerateAll();
@@ -240,6 +242,7 @@ export function EditorLayout() {
           exportPercent={exportState.percent}
           onExport={doExport}
           onCancelExport={() => window.api.cancelExport()}
+          requestedMode={requestedMode}
         />
         <div className="overflow-auto border-l border-border">
           <Inspector

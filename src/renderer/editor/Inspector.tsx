@@ -156,7 +156,7 @@ export function Inspector({ segment, index, speakers, projectDir, ttsNonce, busy
         <Button size="sm" onClick={() => onGenerate(segment.id)} disabled={busy || segment.correctedText.trim() === ''}>
           {segment.ttsAudio ? '再生成' : '生成'}
         </Button>
-        <span className={segment.ttsAudio ? 'text-xs text-primary' : 'text-xs text-muted-foreground'}>
+        <span className={segment.ttsAudio ? 'text-xs font-medium text-emerald-400' : 'text-xs text-muted-foreground'}>
           {segment.ttsAudio ? '生成済み' : '未生成'}
         </span>
       </div>

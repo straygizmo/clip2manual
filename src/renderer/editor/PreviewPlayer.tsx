@@ -19,6 +19,8 @@ interface Props {
   exportPercent: number;
   onExport: () => void;
   onCancelExport: () => void;
+  /** Pass a fresh object to imperatively switch mode (e.g. on TTS generation start). */
+  requestedMode?: { mode: 'original' | 'tts' } | null;
 }
 
 /**
@@ -27,7 +29,7 @@ interface Props {
  */
 export function PreviewPlayer({
   videoRef, audioRef, videoUrl, audioUrl, segments, projectDir, onTime, onDuration, onActiveSegment,
-  exportRunning, exportPercent, onExport, onCancelExport,
+  exportRunning, exportPercent, onExport, onCancelExport, requestedMode,
 }: Props) {
   const [playing, setPlaying] = useState(false);
   const [mode, setMode] = useState<'original' | 'tts'>('original');
@@ -124,6 +126,13 @@ export function PreviewPlayer({
     if (gen !== modeGen.current) return; // 後続の切替が優先
     setMode(next);
   };
+
+  const switchModeRef = useRef(switchMode);
+  switchModeRef.current = switchMode;
+  useEffect(() => {
+    if (!requestedMode) return;
+    void switchModeRef.current(requestedMode.mode);
+  }, [requestedMode]);
 
   const missing = mode === 'tts' && !ttsLoading && (controllerRef.current?.missingClips() ?? false);
   const clicks = segments.flatMap((s) => s.clicks);

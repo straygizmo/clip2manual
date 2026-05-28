@@ -31,6 +31,7 @@
   --segment: #3a3a3a;
   --segment-selected: #4a90d9;
   --segment-playing: #2e8b57;
+  --segment-generated: #1f6b3f;
   --segment-border: #555555;
   --playhead: #ee5544;
   --click-marker: #e0a030;
@@ -88,6 +89,7 @@
   --color-segment: var(--segment);
   --color-segment-selected: var(--segment-selected);
   --color-segment-playing: var(--segment-playing);
+  --color-segment-generated: var(--segment-generated);
   --color-segment-border: var(--segment-border);
   --color-playhead: var(--playhead);
   --color-click-marker: var(--click-marker);

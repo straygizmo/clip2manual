@@ -51,7 +51,13 @@ export function Timeline({
             title={s.correctedText}
             className={cn(
               'absolute box-border cursor-pointer overflow-hidden whitespace-nowrap rounded-sm border border-segment-border px-1 text-[11px] text-foreground',
-              s.id === playingId ? 'bg-segment-playing' : s.id === selectedId ? 'bg-segment-selected' : 'bg-segment',
+              s.id === playingId
+                ? 'bg-segment-playing ring-2 ring-amber-300'
+                : s.id === selectedId
+                  ? 'bg-segment-selected'
+                  : s.ttsAudio
+                    ? 'bg-segment-generated'
+                    : 'bg-segment',
               s.enabled === false && 'opacity-35',
             )}
             style={{ top: 3, height: ROW_H - 6, left: `${r.left}%`, width: `${r.width}%` }}
