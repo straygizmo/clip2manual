@@ -4,6 +4,7 @@ import { registerIpc } from './ipc';
 import { registerAssetScheme, registerAssetProtocol } from './assetProtocol';
 import { stopVoicevoxEngine } from './ipc/tts';
 import { pickProxyFromEnv } from './provision/proxyConfig';
+import { setProxyCreds } from './provision/download';
 
 registerAssetScheme(); // app ready より前に呼ぶ
 
@@ -39,6 +40,11 @@ app.whenReady().then(async () => {
     // 全ホストで Windows SSO を許可する。Chromium が NTLM/Negotiate チャレンジを受けると
     // login イベントを介さず透過的に Windows 資格情報で応答する。
     session.defaultSession.allowNTLMCredentialsForDomains('*');
+    // download.ts 側の per-request login ハンドラへ資格情報を渡す
+    // （net.fetch では app.on('login') が発火しないため net.request 直叩きへ移行）。
+    if (proxy.username) {
+      setProxyCreds({ username: proxy.username, password: proxy.password ?? '' });
+    }
     console.log('[proxy] proxyRules=%s, hasCreds=%s', proxy.proxyRules, proxy.username ? 'yes' : 'no');
   }
 

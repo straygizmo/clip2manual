@@ -1,15 +1,22 @@
-import { net } from 'electron';
+import { net, session } from 'electron';
 import { createWriteStream, readdirSync, statSync } from 'node:fs';
 import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { Readable } from 'node:stream';
-import { pipeline } from 'node:stream/promises';
 import { execFileSync } from 'node:child_process';
 
+let proxyCreds: { username: string; password: string } | null = null;
+
+/** main エントリで HTTPS_PROXY 等から取り出した資格情報を保存する。download() の login ハンドラが使う。 */
+export function setProxyCreds(creds: { username: string; password: string } | null): void {
+  proxyCreds = creds;
+}
+
 /** url を dest にダウンロードする。content-length があれば onProgress(0..100) を通知。signal で中断可。
- *  Electron の `net.fetch`（Chromium ネットワークスタック）を使うため、
- *  Windows システムプロキシおよび `session.defaultSession.setProxy` で設定したプロキシを尊重する。
- *  失敗・中断時は部分ファイルを掃除する（dest は最終パスに直接書くため、skip-if-present の取り違えを防ぐ）。 */
+ *  Electron の `net.request` を使うため Chromium ネットワークスタック経由になり、
+ *  session.defaultSession.setProxy / Windows システムプロキシ / allowNTLMCredentialsForDomains を尊重する。
+ *  Basic プロキシ認証（407）は `req.on('login')` で setProxyCreds() の値を返して応答する
+ *  （※ net.fetch では login イベントが発火しないため net.request 直叩きにしている）。
+ *  失敗・中断時は部分ファイルを掃除する。 */
 export async function download(
   url: string,
   dest: string,
@@ -17,18 +24,61 @@ export async function download(
   signal?: AbortSignal,
 ): Promise<void> {
   try {
-    const res = await net.fetch(url, { redirect: 'follow', signal });
-    if (!res.ok || !res.body) throw new Error(`Download failed (${res.status}) for ${url}`);
-    const total = Number(res.headers.get('content-length') || 0);
-    const body = Readable.fromWeb(res.body as Parameters<typeof Readable.fromWeb>[0]);
-    if (onProgress && total > 0) {
-      let received = 0;
-      body.on('data', (c: Buffer) => {
-        received += c.length;
-        onProgress(Math.min(100, Math.round((received / total) * 100)));
+    await new Promise<void>((resolve, reject) => {
+      const req = net.request({
+        url,
+        method: 'GET',
+        redirect: 'follow',
+        session: session.defaultSession,
       });
-    }
-    await pipeline(body, createWriteStream(dest));
+
+      req.on('login', (authInfo, callback) => {
+        console.log('[req login]', {
+          isProxy: authInfo.isProxy, scheme: authInfo.scheme, host: authInfo.host, port: authInfo.port,
+        });
+        if (authInfo.isProxy && proxyCreds) {
+          callback(proxyCreds.username, proxyCreds.password);
+        } else {
+          callback(); // cancel — surfaces as a non-2xx response or request error
+        }
+      });
+
+      if (signal) {
+        if (signal.aborted) {
+          req.abort();
+          return reject(new Error(`Aborted: ${url}`));
+        }
+        signal.addEventListener('abort', () => req.abort(), { once: true });
+      }
+
+      req.on('error', reject);
+      req.on('response', (res) => {
+        const status = res.statusCode;
+        if (status < 200 || status >= 300) {
+          res.on('data', () => { /* drain to release the socket */ });
+          res.on('end', () => reject(new Error(`Download failed (${status}) for ${url}`)));
+          res.on('error', reject);
+          return;
+        }
+        const cl = res.headers['content-length'];
+        const total = Number((Array.isArray(cl) ? cl[0] : cl) || 0);
+        const ws = createWriteStream(dest);
+        let received = 0;
+        res.on('data', (chunk: Buffer) => {
+          received += chunk.length;
+          if (onProgress && total > 0) {
+            onProgress(Math.min(100, Math.round((received / total) * 100)));
+          }
+          ws.write(chunk);
+        });
+        res.on('error', reject);
+        res.on('end', () => ws.end());
+        ws.on('finish', () => resolve());
+        ws.on('error', reject);
+      });
+
+      req.end();
+    });
   } catch (err) {
     await rm(dest, { force: true });
     throw err;
