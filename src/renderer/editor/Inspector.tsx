@@ -81,7 +81,10 @@ export function Inspector({ segment, index, speakers, projectDir, ttsNonce, busy
   };
   const onToggleCut = () => applyOps(toggleEnabled(segments, segment.id), segment.id);
   const onMerge = () => applyOps(mergeWithNext(segments, segment.id), segment.id);
-  const onSplit = () => applyOps(splitAt(segments, segment.id, state.currentTime, `seg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`), segment.id);
+  const onSplit = () => {
+    const newId = `seg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    applyOps(splitAt(segments, segment.id, state.currentTime, newId), newId);
+  };
 
   const speakerLabel = speakers.find((s) => s.speaker === segment.voice.speaker)?.label;
   // 話者一覧が未取得でも現在の speaker を選べるよう、フォールバック option を用意する。
