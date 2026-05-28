@@ -73,7 +73,9 @@ export function PreviewPlayer({
     if (resolvingDuration.current) return;
     const v = videoRef.current;
     const a = audioRef.current;
-    if (v && a && Math.abs(a.currentTime - v.currentTime) > 0.15) a.currentTime = v.currentTime;
+    if (v && a && Number.isFinite(v.currentTime) && Math.abs(a.currentTime - v.currentTime) > 0.15) {
+      a.currentTime = v.currentTime;
+    }
   };
 
   const inTts = () => mode === 'tts';
@@ -83,7 +85,7 @@ export function PreviewPlayer({
     const a = audioRef.current;
     if (!v) return;
     if (v.paused) {
-      if (a) { a.currentTime = v.currentTime; void a.play(); }
+      if (a && Number.isFinite(v.currentTime)) { a.currentTime = v.currentTime; void a.play(); }
       void v.play();
       setPlaying(true);
     } else {
