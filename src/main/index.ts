@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { registerIpc } from './ipc';
 import { registerAssetScheme, registerAssetProtocol } from './assetProtocol';
 import { stopVoicevoxEngine } from './ipc/tts';
+import { pickProxyFromEnv } from './provision/proxyConfig';
 
 registerAssetScheme(); // app ready より前に呼ぶ
 
@@ -24,7 +25,13 @@ function createWindow(): void {
   }
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  // HTTPS_PROXY/HTTP_PROXY/NO_PROXY が設定されていれば既定セッションに反映する。
+  // net.fetch（provision/download.ts が使用）はこの設定を尊重する。
+  // 環境変数が無ければ Chromium が Windows システムプロキシを自動採用する。
+  const proxy = pickProxyFromEnv(process.env);
+  if (proxy) await session.defaultSession.setProxy(proxy);
+
   // audio: 'loopback' is ignored by the renderer (it calls getDisplayMedia with audio:false);
   // narration is captured separately via getUserMedia (the microphone) in ScreenRecorder.
   registerIpc();

@@ -1,3 +1,4 @@
+import { net } from 'electron';
 import { createWriteStream, readdirSync, statSync } from 'node:fs';
 import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -6,6 +7,8 @@ import { pipeline } from 'node:stream/promises';
 import { execFileSync } from 'node:child_process';
 
 /** url を dest にダウンロードする。content-length があれば onProgress(0..100) を通知。signal で中断可。
+ *  Electron の `net.fetch`（Chromium ネットワークスタック）を使うため、
+ *  Windows システムプロキシおよび `session.defaultSession.setProxy` で設定したプロキシを尊重する。
  *  失敗・中断時は部分ファイルを掃除する（dest は最終パスに直接書くため、skip-if-present の取り違えを防ぐ）。 */
 export async function download(
   url: string,
@@ -14,7 +17,7 @@ export async function download(
   signal?: AbortSignal,
 ): Promise<void> {
   try {
-    const res = await fetch(url, { redirect: 'follow', signal });
+    const res = await net.fetch(url, { redirect: 'follow', signal });
     if (!res.ok || !res.body) throw new Error(`Download failed (${res.status}) for ${url}`);
     const total = Number(res.headers.get('content-length') || 0);
     const body = Readable.fromWeb(res.body as Parameters<typeof Readable.fromWeb>[0]);
