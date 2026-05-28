@@ -43,3 +43,19 @@ export function activeRipplesAt(
   }
   return out;
 }
+
+/**
+ * active リップル群を 1 枚の透明 SVG にする。背景は描かない（PNG 化時に透過のまま）。
+ * 数値は小数 3 桁で出力（フレーム間の見た目を安定させる）。
+ */
+export function rippleSvg(actives: ActiveRippleVisual[], w: number, h: number): string {
+  const fmt = (n: number) => Number.isInteger(n) ? String(n) : n.toFixed(3);
+  const parts = actives.map((a) => {
+    const op = fmt(a.alpha);
+    return (
+      `<circle cx="${fmt(a.x)}" cy="${fmt(a.y)}" r="${fmt(a.ringRadius)}" fill="none" stroke="#ffcf33" stroke-width="${fmt(a.ringStrokeWidth)}" opacity="${op}"/>` +
+      `<circle cx="${fmt(a.x)}" cy="${fmt(a.y)}" r="${fmt(a.dotRadius)}" fill="#ff5470" opacity="${op}"/>`
+    );
+  }).join('');
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">${parts}</svg>`;
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { activeRipplesAt, type ActiveRippleVisual } from '../src/main/export/rippleFrames';
+import { activeRipplesAt, rippleSvg, type ActiveRippleVisual } from '../src/main/export/rippleFrames';
 import { type ClickEvent } from '../src/shared/types';
 import { type PreviewSlot } from '../src/shared/previewTimeline';
 
@@ -75,5 +75,49 @@ describe('activeRipplesAt', () => {
     // c1: fireTimeSlot=0.2, elapsed=0.7 → active
     // c2: fireTimeSlot=0.6, elapsed=0.3 → active
     expect(out3).toHaveLength(2);
+  });
+});
+
+describe('rippleSvg', () => {
+  it('returns a minimal empty svg when there are no actives', () => {
+    const svg = rippleSvg([], 1920, 1080);
+    expect(svg).toContain('<svg');
+    expect(svg).toContain('width="1920"');
+    expect(svg).toContain('height="1080"');
+    expect(svg).toContain('viewBox="0 0 1920 1080"');
+    expect(svg).not.toContain('<circle');
+  });
+
+  it('emits two circles per active (ring + dot)', () => {
+    const a: ActiveRippleVisual = {
+      x: 100, y: 200, ringRadius: 50, ringStrokeWidth: 4.8, dotRadius: 6, alpha: 0.5,
+    };
+    const svg = rippleSvg([a], 1920, 1080);
+    const circles = svg.match(/<circle/g);
+    expect(circles).not.toBeNull();
+    expect(circles!.length).toBe(2);
+    expect(svg).toContain('stroke="#ffcf33"');
+    expect(svg).toContain('fill="#ff5470"');
+    expect(svg).toContain('cx="100"');
+    expect(svg).toContain('cy="200"');
+  });
+
+  it('scales the number of circles with active count', () => {
+    const make = (x: number): ActiveRippleVisual => ({
+      x, y: 0, ringRadius: 10, ringStrokeWidth: 2, dotRadius: 3, alpha: 1,
+    });
+    const svg = rippleSvg([make(1), make(2), make(3)], 100, 100);
+    const circles = svg.match(/<circle/g)!;
+    expect(circles.length).toBe(6); // 2 per active * 3
+  });
+
+  it('renders opacity per active', () => {
+    const a: ActiveRippleVisual = {
+      x: 0, y: 0, ringRadius: 1, ringStrokeWidth: 1, dotRadius: 1, alpha: 0.25,
+    };
+    const svg = rippleSvg([a], 10, 10);
+    // both circles share the same alpha → opacity="0.250" (fixed to 3 decimal places)
+    const occurrences = (svg.match(/opacity="0\.25/g) || []).length;
+    expect(occurrences).toBe(2);
   });
 });
