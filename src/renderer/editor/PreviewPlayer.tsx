@@ -143,7 +143,7 @@ export function PreviewPlayer({
         </div>
         <audio ref={audioRef} src={audioUrl} />
       </div>
-      <div className="flex flex-wrap items-center gap-3 bg-muted px-3 py-2 text-foreground">
+      <div className="flex shrink-0 flex-wrap items-center gap-3 bg-muted px-3 py-2 text-foreground">
         <Button size="sm" onClick={togglePlay} disabled={ttsLoading}>{playing ? <Pause className="size-4" /> : <Play className="size-4" />}{playing ? '一時停止' : '再生'}</Button>
         <span className="text-xs text-muted-foreground">音声:</span>
         <Button size="sm" variant={mode === 'original' ? 'default' : 'secondary'} onClick={() => void switchMode('original')} disabled={mode === 'original' || ttsLoading}>元音声</Button>
