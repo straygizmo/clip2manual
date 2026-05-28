@@ -1,6 +1,9 @@
 import { type ClickEvent } from '../../shared/types';
 import { type PreviewSlot } from '../../shared/previewTimeline';
 import { RIPPLE_MAX_RADIUS_RATIO, rippleProgress } from '../../shared/rippleOverlay';
+import { promises as fs } from 'node:fs';
+import * as path from 'node:path';
+import sharp from 'sharp';
 
 export interface ActiveRippleVisual {
   x: number;
@@ -58,4 +61,36 @@ export function rippleSvg(actives: ActiveRippleVisual[], w: number, h: number): 
     );
   }).join('');
   return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">${parts}</svg>`;
+}
+
+export interface GenerateRippleFramesInput {
+  slot: PreviewSlot;
+  clicks: ClickEvent[];      // segment.clicks のフラット化を想定（slot 外は内部で除外）
+  fps: number;
+  videoW: number;
+  videoH: number;
+  outDir: string;            // <tmpDir>/<slotId>_ripple
+  signal?: AbortSignal;
+}
+
+/**
+ * スロットに属する click だけを描画した透明 PNG シーケンスを outDir に出す。
+ * クリック空なら null（呼び出し側は overlay をスキップ）。
+ */
+export async function generateRippleFramesForSlot(
+  input: GenerateRippleFramesInput,
+): Promise<{ pattern: string; fps: number } | null> {
+  const slotClicks = input.clicks.filter((c) => c.t > input.slot.videoStart && c.t <= input.slot.videoEnd);
+  if (slotClicks.length === 0) return null;
+  await fs.mkdir(input.outDir, { recursive: true });
+  const totalFrames = Math.ceil(input.slot.slotDuration * input.fps);
+  for (let n = 0; n < totalFrames; n++) {
+    if (input.signal?.aborted) throw new Error('Export cancelled');
+    const tSlot = n / input.fps;
+    const actives = activeRipplesAt(slotClicks, input.slot, tSlot, input.videoW);
+    const svg = rippleSvg(actives, input.videoW, input.videoH);
+    const filePath = path.join(input.outDir, `${String(n).padStart(5, '0')}.png`);
+    await sharp(Buffer.from(svg)).png({ compressionLevel: 9 }).toFile(filePath);
+  }
+  return { pattern: path.join(input.outDir, '%05d.png'), fps: input.fps };
 }

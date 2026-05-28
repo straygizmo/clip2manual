@@ -1,5 +1,8 @@
-import { describe, it, expect } from 'vitest';
-import { activeRipplesAt, rippleSvg, type ActiveRippleVisual } from '../src/main/export/rippleFrames';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { promises as fs } from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { activeRipplesAt, rippleSvg, generateRippleFramesForSlot, type ActiveRippleVisual } from '../src/main/export/rippleFrames';
 import { type ClickEvent } from '../src/shared/types';
 import { type PreviewSlot } from '../src/shared/previewTimeline';
 
@@ -119,5 +122,47 @@ describe('rippleSvg', () => {
     // both circles share the same alpha → opacity="0.250" (fixed to 3 decimal places)
     const occurrences = (svg.match(/opacity="0\.25/g) || []).length;
     expect(occurrences).toBe(2);
+  });
+});
+
+describe('generateRippleFramesForSlot', () => {
+  let outDir: string;
+  beforeEach(async () => { outDir = await fs.mkdtemp(path.join(os.tmpdir(), 'c2m-rip-')); });
+  afterEach(async () => { await fs.rm(outDir, { recursive: true, force: true }); });
+
+  it('returns null and writes no files when no clicks fall in the slot', async () => {
+    const r = await generateRippleFramesForSlot({
+      slot, clicks: [], fps: 30, videoW: 1920, videoH: 1080, outDir,
+    });
+    expect(r).toBeNull();
+    const files = await fs.readdir(outDir).catch(() => []);
+    expect(files.length).toBe(0);
+  });
+
+  it('writes ceil(slotDuration*fps) PNG frames and returns the pattern', async () => {
+    const r = await generateRippleFramesForSlot({
+      slot, clicks: [{ t: 1.5, x: 100, y: 200, button: 1 }],
+      fps: 10, videoW: 640, videoH: 360, outDir,
+    });
+    expect(r).not.toBeNull();
+    expect(r!.fps).toBe(10);
+    expect(r!.pattern).toBe(path.join(outDir, '%05d.png'));
+    const files = (await fs.readdir(outDir)).filter((f) => f.endsWith('.png')).sort();
+    // slotDuration=3, fps=10 → 30 frames numbered 00000..00029
+    expect(files.length).toBe(30);
+    expect(files[0]).toBe('00000.png');
+    expect(files[29]).toBe('00029.png');
+    // each file starts with PNG signature
+    const head = await fs.readFile(path.join(outDir, '00000.png'));
+    expect(head.subarray(0, 4).toString('hex')).toBe('89504e47');
+  });
+
+  it('aborts when the signal fires', async () => {
+    const ac = new AbortController();
+    ac.abort();
+    await expect(generateRippleFramesForSlot({
+      slot, clicks: [{ t: 1.5, x: 0, y: 0, button: 1 }],
+      fps: 10, videoW: 100, videoH: 100, outDir, signal: ac.signal,
+    })).rejects.toThrow(/cancel/i);
   });
 });
