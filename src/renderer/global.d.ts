@@ -43,6 +43,10 @@ declare global {
       runExport: (outPath: string) => Promise<{ ok: true; outPath: string; credit: string }>;
       cancelExport: () => Promise<{ ok: true }>;
       onExportProgress: (cb: (percent: number) => void) => () => void;
+      setupStatus: () => Promise<{ whisper: boolean; voicevox: boolean; ffmpeg: boolean }>;
+      runSetup: () => Promise<{ whisper: boolean; voicevox: boolean; ffmpeg: boolean }>;
+      cancelSetup: () => Promise<{ ok: true }>;
+      onSetupProgress: (cb: (p: { tool: string; percent: number }) => void) => () => void;
     };
   }
 }

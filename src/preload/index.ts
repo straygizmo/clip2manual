@@ -46,4 +46,12 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('export:progress', listener);
     return () => { ipcRenderer.removeListener('export:progress', listener); };
   },
+  setupStatus: () => ipcRenderer.invoke('setup:status'),
+  runSetup: () => ipcRenderer.invoke('setup:install'),
+  cancelSetup: () => ipcRenderer.invoke('setup:cancel'),
+  onSetupProgress: (cb: (p: { tool: string; percent: number }) => void) => {
+    const listener = (_e: unknown, p: { tool: string; percent: number }) => cb(p);
+    ipcRenderer.on('setup:progress', listener);
+    return () => { ipcRenderer.removeListener('setup:progress', listener); };
+  },
 });
