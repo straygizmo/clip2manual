@@ -22,6 +22,10 @@ interface Props {
   onCancelExport: () => void;
   /** Pass a fresh object to imperatively switch mode (e.g. on TTS generation start). */
   requestedMode?: { mode: 'original' | 'tts' } | null;
+  /** 字幕表示テキスト。null/空文字で非表示。EditorLayout 側で pickSubtitle 結果が渡される。 */
+  subtitleText: string | null;
+  /** TTS モード進捗のフォワード（EditorLayout が pickSubtitle 引数に使う）。 */
+  onSlotProgress: (hint: { slotId: string; offsetInSlot: number; visibleDuration: number } | null) => void;
 }
 
 /**
@@ -30,7 +34,7 @@ interface Props {
  */
 export function PreviewPlayer({
   videoRef, audioRef, videoUrl, audioUrl, segments, projectDir, onTime, onDuration, onActiveSegment,
-  exportRunning, exportPercent, onExport, onCancelExport, requestedMode,
+  exportRunning, exportPercent, onExport, onCancelExport, requestedMode, subtitleText, onSlotProgress,
 }: Props) {
   const { t } = useTranslation();
   const [playing, setPlaying] = useState(false);
@@ -44,12 +48,15 @@ export function PreviewPlayer({
   onActiveRef.current = onActiveSegment;
   const onTimeRef = useRef(onTime);
   onTimeRef.current = onTime;
+  const onSlotProgressRef = useRef(onSlotProgress);
+  onSlotProgressRef.current = onSlotProgress;
 
   const controllerRef = useRef<TtsPreviewController | null>(null);
   if (!controllerRef.current) {
     controllerRef.current = new TtsPreviewController({
       onActiveSegment: (id) => onActiveRef.current(id),
       onTime: (t) => onTimeRef.current(t),
+      onSlotProgress: (h) => onSlotProgressRef.current(h),
       onEnded: () => setPlaying(false),
     });
   }
@@ -158,6 +165,22 @@ export function PreviewPlayer({
             onSeeked={() => { if (inTts()) return; syncAudioTime(); }}
           />
           <RippleCanvas videoRef={videoRef} clicks={clicks} />
+          {subtitleText && (
+            <div
+              className="pointer-events-none absolute left-1/2 -translate-x-1/2 whitespace-pre-wrap break-words rounded px-3 py-1 text-center font-semibold text-white"
+              style={{
+                bottom: '8%',
+                maxWidth: '80%',
+                background: 'rgba(0, 0, 0, 0.55)',
+                fontSize: 'clamp(14px, 3.5vh, 32px)',
+                lineHeight: 1.3,
+                textShadow: '0 0 2px black, 0 0 3px black',
+                fontFamily: 'system-ui, -apple-system, "Yu Gothic UI", "Meiryo", sans-serif',
+              }}
+            >
+              {subtitleText}
+            </div>
+          )}
         </div>
         <audio ref={audioRef} src={audioUrl} />
       </div>
