@@ -16,6 +16,7 @@
     "src/renderer/state/editorReducer.ts",
     "src/renderer/state/segmentOps.ts",
     "src/main/provision/paths.ts",
+    "src/main/provision/status.ts",
     "test",
     "electron.vite.config.ts",
     "vitest.config.ts"
