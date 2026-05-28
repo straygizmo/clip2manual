@@ -55,8 +55,20 @@ export async function download(
       req.on('response', (res) => {
         const status = res.statusCode;
         if (status < 200 || status >= 300) {
-          res.on('data', () => { /* drain to release the socket */ });
-          res.on('end', () => reject(new Error(`Download failed (${status}) for ${url}`)));
+          // 失敗時はレスポンス本文を最大2KBまで集めて理由をエラーに含める
+          // （社内プロキシのURLフィルタは 403/451 でブロック理由を返すことが多い）。
+          const chunks: Buffer[] = [];
+          let collected = 0;
+          res.on('data', (c: Buffer) => {
+            if (collected < 2048) {
+              chunks.push(c);
+              collected += c.length;
+            }
+          });
+          res.on('end', () => {
+            const body = Buffer.concat(chunks).subarray(0, 2048).toString('utf8').trim();
+            reject(new Error(`Download failed (${status}) for ${url}${body ? `: ${body}` : ''}`));
+          });
           res.on('error', reject);
           return;
         }
