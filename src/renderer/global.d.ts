@@ -21,6 +21,8 @@ export interface OpenedProject {
 declare global {
   interface Window {
     api: {
+      /** OSロケール文字列（例 "ja", "ja-JP", "en-US"）。preload で同期的に解決される。 */
+      locale: string;
       startRecording: () => Promise<{ ok: boolean }>;
       stopRecording: (payload: StopPayload) => Promise<{ projectDir: string; clickCount: number }>;
       openProjectDialog: () => Promise<OpenedProject | null>;

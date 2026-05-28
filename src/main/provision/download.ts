@@ -3,6 +3,7 @@ import { createWriteStream, readdirSync, readFileSync, statSync } from 'node:fs'
 import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { tMain } from '../i18n';
 
 let proxyCreds: { username: string; password: string } | null = null;
 
@@ -46,7 +47,7 @@ export async function download(
       if (signal) {
         if (signal.aborted) {
           req.abort();
-          return reject(new Error(`Aborted: ${url}`));
+          return reject(new Error(tMain('errors.downloadAborted', { url })));
         }
         signal.addEventListener('abort', () => req.abort(), { once: true });
       }
@@ -74,7 +75,7 @@ export async function download(
             let body: string;
             try { body = new TextDecoder(charset).decode(buf).trim(); }
             catch { body = buf.toString('utf8').trim(); }
-            reject(new Error(`Download failed (${status}) for ${url}${body ? `: ${body}` : ''}`));
+            reject(new Error(tMain('errors.downloadHttpFailed', { status, url, body: body ? `: ${body}` : '' })));
           });
           res.on('error', reject);
           return;
@@ -122,7 +123,7 @@ export function extractZip(zip: string, dest: string): void {
       const buf = readFileSync(zip);
       head = ` [size=${buf.length}, first16=${buf.subarray(0, 16).toString('hex')}]`;
     } catch { /* zip already removed or unreadable — diag still useful without it */ }
-    throw new Error(`Expand-Archive failed for ${zip}: ${ps}${head}`);
+    throw new Error(tMain('errors.expandArchiveFailed', { path: zip, message: ps, head }));
   }
 }
 

@@ -6,6 +6,7 @@ import { resolveWhisper } from '../whisperPaths';
 import { resolveVoicevox } from '../voicevox/voicevoxPaths';
 import { resolveFfmpeg } from '../ffmpegPaths';
 import { installWhisper, installVoicevox, installFfmpeg } from '../provision/installers';
+import { tMain } from '../i18n';
 
 let currentAbort: AbortController | null = null;
 
@@ -38,7 +39,7 @@ export function registerSetupIpc(): void {
           // 後続ツールが失敗して全体が reject されても、ここで送った成功分は反映済みになる。
           event.sender.send('setup:statusChanged', status());
         } catch (err) {
-          throw new Error(`${tool}: ${String(err)}`);
+          throw new Error(tMain('errors.installToolWrapped', { tool, message: String(err) }));
         }
       }
       return status();

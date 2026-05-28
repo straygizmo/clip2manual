@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type Segment, type SpeakerOption } from '../../shared/types';
 import { useEditor } from '../state/editorStore';
 import { toggleEnabled, mergeWithNext, splitAt } from '../state/segmentOps';
@@ -30,6 +31,7 @@ interface Props {
 }
 
 export function Inspector({ segment, index, speakers, projectDir, ttsNonce, busy, onLoadSpeakers, onGenerate }: Props) {
+  const { t } = useTranslation();
   const { state, dispatch } = useEditor();
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -37,7 +39,7 @@ export function Inspector({ segment, index, speakers, projectDir, ttsNonce, busy
   useEffect(() => { setSaveError(null); }, [segment?.id]);
 
   if (!segment) {
-    return <div className="p-3 text-sm text-muted-foreground">セグメントを選択してください</div>;
+    return <div className="p-3 text-sm text-muted-foreground">{t('inspector.selectPrompt')}</div>;
   }
 
   const edited = segment.correctedText !== segment.originalText;
@@ -90,26 +92,26 @@ export function Inspector({ segment, index, speakers, projectDir, ttsNonce, busy
   // 話者一覧が未取得でも現在の speaker を選べるよう、フォールバック option を用意する。
   const options = speakers.length > 0
     ? speakers
-    : [{ speaker: segment.voice.speaker, label: `話者 ${segment.voice.speaker}` }];
+    : [{ speaker: segment.voice.speaker, label: t('inspector.speakerFallback', { id: segment.voice.speaker }) }];
 
   return (
     <div className="p-3 text-sm">
       <h3 className="mt-0 text-sm font-semibold">
-        セグメント {index + 1}（{segment.id}）
+        {t('inspector.title', { index: index + 1, id: segment.id })}
         {edited && (
-          <Badge variant="outline" className="ml-2">編集済み</Badge>
+          <Badge variant="outline" className="ml-2">{t('inspector.editedBadge')}</Badge>
         )}
       </h3>
       <div className="mb-2 text-muted-foreground">
         {fmt(segment.videoStart)} – {fmt(segment.videoEnd)}
       </div>
 
-      <div className="mb-1 text-xs text-muted-foreground">元の文字起こし（読み取り専用）</div>
+      <div className="mb-1 text-xs text-muted-foreground">{t('inspector.originalLabel')}</div>
       <div className="mt-1 whitespace-pre-wrap rounded-md bg-muted p-2 text-muted-foreground">
-        {segment.originalText || '（無音/空）'}
+        {segment.originalText || t('inspector.emptyText')}
       </div>
 
-      <Label htmlFor="inspector-corrected-text" className="mt-2 mb-1 block text-xs text-muted-foreground">補正テキスト</Label>
+      <Label htmlFor="inspector-corrected-text" className="mt-2 mb-1 block text-xs text-muted-foreground">{t('inspector.correctedLabel')}</Label>
       <Textarea
         id="inspector-corrected-text"
         value={segment.correctedText}
@@ -120,14 +122,14 @@ export function Inspector({ segment, index, speakers, projectDir, ttsNonce, busy
       />
       <div className="mt-1.5 flex items-center gap-2">
         <Button variant="ghost" size="sm" onClick={revert} disabled={!edited || busy}>
-          <RotateCcw className="size-4" />元に戻す
+          <RotateCcw className="size-4" />{t('inspector.revert')}
         </Button>
-        {saveError && <span className="text-xs text-destructive">保存に失敗しました</span>}
+        {saveError && <span className="text-xs text-destructive">{t('inspector.saveFailed')}</span>}
       </div>
 
       <Separator className="my-3" />
 
-      <Label className="mb-1 block text-xs text-muted-foreground">声（話者）</Label>
+      <Label className="mb-1 block text-xs text-muted-foreground">{t('inspector.voiceLabel')}</Label>
       <Select
         value={String(segment.voice.speaker)}
         onValueChange={(v) => setVoice({ speaker: Number(v), speed: segment.voice.speed })}
@@ -142,7 +144,7 @@ export function Inspector({ segment, index, speakers, projectDir, ttsNonce, busy
         </SelectContent>
       </Select>
 
-      <Label className="mt-2 mb-1 block text-xs text-muted-foreground">速度（{segment.voice.speed.toFixed(2)}）</Label>
+      <Label className="mt-2 mb-1 block text-xs text-muted-foreground">{t('inspector.speedLabel', { value: segment.voice.speed.toFixed(2) })}</Label>
       <Slider
         min={0.5}
         max={2}
@@ -154,10 +156,10 @@ export function Inspector({ segment, index, speakers, projectDir, ttsNonce, busy
 
       <div className="mt-2.5 flex items-center gap-2">
         <Button size="sm" onClick={() => onGenerate(segment.id)} disabled={busy || segment.correctedText.trim() === ''}>
-          {segment.ttsAudio ? '再生成' : '生成'}
+          {segment.ttsAudio ? t('inspector.regenerate') : t('inspector.generate')}
         </Button>
         <span className={segment.ttsAudio ? 'text-xs font-medium text-emerald-400' : 'text-xs text-muted-foreground'}>
-          {segment.ttsAudio ? '生成済み' : '未生成'}
+          {segment.ttsAudio ? t('inspector.statusGenerated') : t('inspector.statusNotGenerated')}
         </span>
       </div>
 
@@ -165,7 +167,7 @@ export function Inspector({ segment, index, speakers, projectDir, ttsNonce, busy
         <div className="mt-2">
           <audio controls src={`${projectAssetUrl(segment.ttsAudio, projectDir)}&v=${ttsNonce}`} className="w-full" />
           <div className="mt-1 text-xs text-muted-foreground">
-            クレジット: VOICEVOX{speakerLabel ? `：${speakerLabel}` : ''}
+            {speakerLabel ? t('inspector.creditWithSpeaker', { speaker: speakerLabel }) : t('inspector.credit')}
           </div>
         </div>
       )}
@@ -173,19 +175,19 @@ export function Inspector({ segment, index, speakers, projectDir, ttsNonce, busy
       <Separator className="my-3" />
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" size="sm" onClick={onToggleCut} disabled={busy}>
-          <Scissors className="size-4" />{segment.enabled ? 'カット' : '有効化'}
+          <Scissors className="size-4" />{segment.enabled ? t('inspector.cut') : t('inspector.enable')}
         </Button>
         <Button variant="outline" size="sm" onClick={onSplit} disabled={!canSplit || busy}>
-          <SplitSquareHorizontal className="size-4" />分割（再生ヘッド位置）
+          <SplitSquareHorizontal className="size-4" />{t('inspector.splitAtPlayhead')}
         </Button>
         <Button variant="outline" size="sm" onClick={onMerge} disabled={isLast || busy}>
-          <ArrowDownToLine className="size-4" />次と結合
+          <ArrowDownToLine className="size-4" />{t('inspector.mergeNext')}
         </Button>
       </div>
       {!segment.enabled && (
-        <div className="mt-1.5 text-xs text-amber-500">カット中（プレビュー/書き出しで除外）</div>
+        <div className="mt-1.5 text-xs text-amber-500">{t('inspector.cutBadge')}</div>
       )}
-      <div className="mt-2 text-xs text-muted-foreground">クリック {segment.clicks.length} 件</div>
+      <div className="mt-2 text-xs text-muted-foreground">{t('inspector.clickCount', { count: segment.clicks.length })}</div>
     </div>
   );
 }

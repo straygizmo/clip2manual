@@ -10,6 +10,7 @@
     "src/main",
     "src/preload",
     "src/shared",
+    "src/shared/i18n/locales/*.json",
     "src/renderer/editor/timelineGeometry.ts",
     "src/renderer/editor/assetUrl.ts",
     "src/renderer/editor/rippleOverlay.ts",

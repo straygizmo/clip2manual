@@ -7,6 +7,7 @@ import { resolveFfmpeg } from '../ffmpegPaths';
 import { vendorDir } from '../provision/vendorDirs';
 import { runExport } from '../export/exportService';
 import { runFfmpeg, runProbe } from '../export/ffmpegRunner';
+import { tMain } from '../i18n';
 
 const CREDIT = 'Audio synthesized with VOICEVOX (https://voicevox.hps.info/).';
 let currentAbort: AbortController | null = null;
@@ -16,14 +17,14 @@ export function registerExportIpc(): void {
     const { project } = projectSession.getCurrent();
     const res = await dialog.showSaveDialog({
       defaultPath: `${project.meta.name}.mp4`,
-      filters: [{ name: 'MP4', extensions: ['mp4'] }],
+      filters: [{ name: tMain('dialog.mp4Filter'), extensions: ['mp4'] }],
     });
     if (res.canceled || !res.filePath) return null;
     return res.filePath;
   });
 
   ipcMain.handle('export:run', async (event, outPath: string) => {
-    if (currentAbort) throw new Error('書き出しが既に実行中です');
+    if (currentAbort) throw new Error(tMain('errors.exportAlreadyRunning'));
     const { dir, project } = projectSession.getCurrent();
     const { ffmpegPath, ffprobePath } = resolveFfmpeg({ vendorDir: vendorDir('ffmpeg') });
     const tmpDir = path.join(dir, 'export-tmp');

@@ -2,6 +2,7 @@ import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import { type Segment } from '../../shared/types';
 import { type SynthesizeInput } from './ttsClient';
+import { tMain } from '../i18n';
 
 /** 起動済みエンジンの baseUrl を返す抽象。 */
 export interface TtsEngine {
@@ -41,7 +42,7 @@ export async function generateTts(opts: GenerateOptions): Promise<Segment[]> {
   const updated = opts.segments.map((s) => ({ ...s }));
   let done = 0;
   for (const s of targets) {
-    if (opts.signal?.aborted) throw new Error('TTS generation cancelled');
+    if (opts.signal?.aborted) throw new Error(tMain('errors.ttsCancelled'));
     const wav = await opts.client.synthesize(baseUrl, {
       text: s.correctedText,
       speaker: s.voice.speaker,

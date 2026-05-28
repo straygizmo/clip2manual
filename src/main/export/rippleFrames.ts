@@ -4,6 +4,7 @@ import { RIPPLE_MAX_RADIUS_RATIO, rippleProgress } from '../../shared/rippleOver
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import sharp from 'sharp';
+import { tMain } from '../i18n';
 
 export interface ActiveRippleVisual {
   x: number;
@@ -85,7 +86,7 @@ export async function generateRippleFramesForSlot(
   await fs.mkdir(input.outDir, { recursive: true });
   const totalFrames = Math.ceil(input.slot.slotDuration * input.fps);
   for (let n = 0; n < totalFrames; n++) {
-    if (input.signal?.aborted) throw new Error('Export cancelled');
+    if (input.signal?.aborted) throw new Error(tMain('errors.exportCancelled'));
     const tSlot = n / input.fps;
     const actives = activeRipplesAt(slotClicks, input.slot, tSlot, input.videoW);
     const svg = rippleSvg(actives, input.videoW, input.videoH);

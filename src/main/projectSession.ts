@@ -1,5 +1,6 @@
 import { type Project, type ProjectSettings, type Segment } from '../shared/types';
 import { saveProject } from './projectStore';
+import { tMain } from './i18n';
 
 /** main プロセスで「現在開いているプロジェクト」を保持する。 */
 export class ProjectSession {
@@ -17,7 +18,7 @@ export class ProjectSession {
 
   getCurrent(): { dir: string; project: Project } {
     if (this.dir === null || this.project === null) {
-      throw new Error('No project is currently open');
+      throw new Error(tMain('errors.noProjectOpen'));
     }
     return { dir: this.dir, project: this.project };
   }

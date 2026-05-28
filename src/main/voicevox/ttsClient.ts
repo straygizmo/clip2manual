@@ -1,4 +1,5 @@
 import { type SpeakerOption } from '../../shared/types';
+import { tMain } from '../i18n';
 
 export interface SynthesizeInput {
   text: string;
@@ -51,7 +52,7 @@ export function flattenSpeakers(raw: RawSpeaker[]): SpeakerOption[] {
 /** /speakers を取得する。 */
 export async function fetchSpeakers(baseUrl: string, fetchFn: FetchLike = defaultFetch): Promise<RawSpeaker[]> {
   const res = await fetchFn(`${baseUrl}/speakers`);
-  if (!res.ok) throw new Error(`/speakers failed (${res.status})`);
+  if (!res.ok) throw new Error(tMain('errors.voicevoxSpeakersFailed', { status: res.status }));
   return (await res.json()) as RawSpeaker[];
 }
 
@@ -65,7 +66,7 @@ export async function synthesize(
     `${baseUrl}/audio_query?text=${encodeURIComponent(input.text)}&speaker=${input.speaker}`,
     { method: 'POST' },
   );
-  if (!q.ok) throw new Error(`audio_query failed (${q.status})`);
+  if (!q.ok) throw new Error(tMain('errors.voicevoxAudioQueryFailed', { status: q.status }));
   const query = { ...((await q.json()) as Record<string, unknown>), speedScale: input.speed };
 
   const s = await fetchFn(`${baseUrl}/synthesis?speaker=${input.speaker}`, {
@@ -73,6 +74,6 @@ export async function synthesize(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(query),
   });
-  if (!s.ok) throw new Error(`synthesis failed (${s.status})`);
+  if (!s.ok) throw new Error(tMain('errors.voicevoxSynthesisFailed', { status: s.status }));
   return Buffer.from(await s.arrayBuffer());
 }

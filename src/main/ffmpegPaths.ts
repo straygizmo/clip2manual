@@ -1,5 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { tMain } from './i18n';
 
 export class FfmpegNotProvisionedError extends Error {
   constructor(message: string) {
@@ -15,7 +16,7 @@ export interface FfmpegPaths {
 
 function assertExists(p: string): void {
   if (!fs.existsSync(p)) {
-    throw new FfmpegNotProvisionedError(`FFmpeg file not found: ${p}. Run: npm run setup:ffmpeg`);
+    throw new FfmpegNotProvisionedError(tMain('errors.ffmpegFileNotFound', { path: p }));
   }
 }
 
@@ -35,9 +36,7 @@ export function resolveFfmpeg(opts: { vendorDir?: string } = {}): FfmpegPaths {
   const vendorDir = opts.vendorDir ?? path.join(process.cwd(), 'vendor', 'ffmpeg');
   const manifestPath = path.join(vendorDir, 'manifest.json');
   if (!fs.existsSync(manifestPath)) {
-    throw new FfmpegNotProvisionedError(
-      `FFmpeg is not provisioned (${manifestPath} not found). Run: npm run setup:ffmpeg`,
-    );
+    throw new FfmpegNotProvisionedError(tMain('errors.ffmpegNotProvisioned', { path: manifestPath }));
   }
   const m = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as FfmpegPaths;
   assertExists(m.ffmpegPath);

@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { tMain } from '../i18n';
 
 /** ffmpeg を実行する。非0終了で reject（stderr 末尾付き）。 */
 export function runFfmpeg(ffmpegPath: string, args: string[], signal?: AbortSignal): Promise<void> {
@@ -12,7 +13,7 @@ export function runFfmpeg(ffmpegPath: string, args: string[], signal?: AbortSign
     child.on('close', (code) => {
       signal?.removeEventListener('abort', onAbort);
       if (code === 0) resolve();
-      else reject(new Error(`ffmpeg exited with code ${code}\n${tail}`));
+      else reject(new Error(tMain('errors.ffmpegExitCode', { code, tail })));
     });
   });
 }
@@ -28,7 +29,7 @@ export function runProbe(ffprobePath: string, args: string[]): Promise<string> {
     child.on('error', reject);
     child.on('close', (code) => {
       if (code === 0) resolve(out);
-      else reject(new Error(`ffprobe exited with code ${code}\n${tail}`));
+      else reject(new Error(tMain('errors.ffprobeExitCode', { code, tail })));
     });
   });
 }

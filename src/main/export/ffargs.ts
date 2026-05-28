@@ -1,4 +1,5 @@
 import { type PreviewSlot } from '../../shared/previewTimeline';
+import { tMain } from '../i18n';
 
 /** 全中間クリップを揃えるための共通エンコード設定。 */
 const VIDEO_ENCODE = ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p'];
@@ -10,7 +11,7 @@ export function probeDurationArgs(file: string): string[] {
 
 export function parseProbeDuration(stdout: string): number {
   const n = Number.parseFloat(stdout.trim());
-  if (!Number.isFinite(n)) throw new Error(`Cannot parse ffprobe duration: ${JSON.stringify(stdout)}`);
+  if (!Number.isFinite(n)) throw new Error(tMain('errors.ffprobeParseDuration', { stdout: JSON.stringify(stdout) }));
   return n;
 }
 
@@ -28,7 +29,7 @@ export function parseFps(stdout: string): number {
   }
   const f = Number.parseFloat(s);
   if (Number.isFinite(f) && f > 0) return f;
-  throw new Error(`Cannot parse ffprobe fps: ${JSON.stringify(stdout)}`);
+  throw new Error(tMain('errors.ffprobeParseFps', { stdout: JSON.stringify(stdout) }));
 }
 
 export function probeResolutionArgs(file: string): string[] {
@@ -38,11 +39,11 @@ export function probeResolutionArgs(file: string): string[] {
 export function parseResolution(stdout: string): { width: number; height: number } {
   const s = stdout.trim();
   const m = s.match(/^(\d+)\s*,\s*(\d+)$/);
-  if (!m) throw new Error(`Cannot parse ffprobe resolution: ${JSON.stringify(stdout)}`);
+  if (!m) throw new Error(tMain('errors.ffprobeParseResolution', { stdout: JSON.stringify(stdout) }));
   const width = Number(m[1]);
   const height = Number(m[2]);
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
-    throw new Error(`Bad resolution: ${JSON.stringify(stdout)}`);
+    throw new Error(tMain('errors.ffprobeBadResolution', { stdout: JSON.stringify(stdout) }));
   }
   return { width, height };
 }

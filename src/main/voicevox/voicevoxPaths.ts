@@ -1,5 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { tMain } from '../i18n';
 
 export class VoicevoxNotProvisionedError extends Error {
   constructor(message: string) {
@@ -14,7 +15,7 @@ export interface VoicevoxPaths {
 
 function assertExists(p: string): void {
   if (!fs.existsSync(p)) {
-    throw new VoicevoxNotProvisionedError(`VOICEVOX file not found: ${p}. Run: npm run setup:voicevox`);
+    throw new VoicevoxNotProvisionedError(tMain('errors.voicevoxFileNotFound', { path: p }));
   }
 }
 
@@ -33,9 +34,7 @@ export function resolveVoicevox(opts: { vendorDir?: string } = {}): VoicevoxPath
   const vendorDir = opts.vendorDir ?? path.join(process.cwd(), 'vendor', 'voicevox');
   const manifestPath = path.join(vendorDir, 'manifest.json');
   if (!fs.existsSync(manifestPath)) {
-    throw new VoicevoxNotProvisionedError(
-      `VOICEVOX is not provisioned (${manifestPath} not found). Run: npm run setup:voicevox`,
-    );
+    throw new VoicevoxNotProvisionedError(tMain('errors.voicevoxNotProvisioned', { path: manifestPath }));
   }
   const m = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as VoicevoxPaths;
   assertExists(m.runPath);

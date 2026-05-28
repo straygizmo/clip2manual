@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useEditor } from '../state/editorStore';
 import { PreviewPlayer } from './PreviewPlayer';
 import { Timeline } from './Timeline';
@@ -15,6 +16,7 @@ import { ArrowLeft, FileText, Mic, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function EditorLayout() {
+  const { t } = useTranslation();
   const { state, dispatch } = useEditor();
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -122,11 +124,15 @@ export function EditorLayout() {
     setExportState({ status: 'running', percent: 0, message: '' });
     try {
       const res = await window.api.runExport(outPath);
-      setExportState({ status: 'done', percent: 100, message: `書き出し完了: ${res.outPath}（${res.credit}）` });
-      toast.success('書き出し完了', { description: res.outPath });
+      setExportState({
+        status: 'done',
+        percent: 100,
+        message: t('editor.exportDoneMessage', { path: res.outPath, credit: res.credit }),
+      });
+      toast.success(t('editor.exportSuccess'), { description: res.outPath });
     } catch (err) {
       setExportState({ status: 'error', percent: 0, message: String(err) });
-      toast.error('書き出しに失敗しました', { description: String(err) });
+      toast.error(t('editor.exportFailed'), { description: String(err) });
     }
   }
 
@@ -153,14 +159,14 @@ export function EditorLayout() {
   const defaultSpeed = project.settings.tts.defaultSpeed;
   const defaultOptions = speakers.length > 0
     ? speakers
-    : [{ speaker: defaultSpeaker, label: `話者 ${defaultSpeaker}` }];
+    : [{ speaker: defaultSpeaker, label: t('inspector.speakerFallback', { id: defaultSpeaker }) }];
 
   return (
     <div className="grid h-screen grid-rows-[48px_1fr_auto]">
       {/* ツールバー */}
       <div className="flex flex-wrap items-center gap-2 bg-toolbar px-3 text-foreground">
         <Button variant="ghost" size="sm" onClick={() => dispatch({ type: 'CLOSE_PROJECT' })}>
-          <ArrowLeft className="size-4" />ホーム
+          <ArrowLeft className="size-4" />{t('editor.home')}
         </Button>
         <span className="font-semibold">{project.meta.name}</span>
 
@@ -168,18 +174,22 @@ export function EditorLayout() {
 
         <Button variant="secondary" size="sm" onClick={runTranscription} disabled={tx.status === 'running'}>
           <FileText className="size-4" />
-          {tx.status === 'running' ? `文字起こし中… ${tx.percent}%` : '文字起こし'}
+          {tx.status === 'running'
+            ? t('editor.transcribeRunning', { percent: tx.percent })
+            : t('editor.transcribe')}
         </Button>
         {tx.status === 'running' && (
           <Button variant="ghost" size="sm" onClick={() => window.api.cancelTranscription()}>
-            <X className="size-4" />キャンセル
+            <X className="size-4" />{t('common.cancel')}
           </Button>
         )}
-        {tx.status === 'error' && <span className="text-xs text-destructive">失敗: {tx.error}</span>}
+        {tx.status === 'error' && (
+          <span className="text-xs text-destructive">{t('editor.transcribeFailed', { message: tx.error })}</span>
+        )}
 
         <Separator orientation="vertical" className="h-6" />
 
-        <span className="text-xs text-muted-foreground">既定の声</span>
+        <span className="text-xs text-muted-foreground">{t('editor.defaultVoiceLabel')}</span>
         <Select
           value={String(defaultSpeaker)}
           onValueChange={(v) => setDefaultVoice({ speaker: Number(v), speed: defaultSpeed })}
@@ -206,24 +216,26 @@ export function EditorLayout() {
         />
         <span className="w-10 text-right text-xs tabular-nums text-muted-foreground">{defaultSpeed.toFixed(2)}x</span>
         <Button variant="secondary" size="sm" onClick={applyDefaultToAll} disabled={ttsBusy}>
-          全セグメントに適用
+          {t('editor.applyDefaultToAll')}
         </Button>
 
         <Separator orientation="vertical" className="h-6" />
 
         <Button variant="secondary" size="sm" onClick={generateAll} disabled={ttsBusy}>
           <Mic className="size-4" />
-          {ttsBusy ? `生成中… ${tts.percent}%` : '全セグメント生成'}
+          {ttsBusy ? t('editor.generating', { percent: tts.percent }) : t('editor.generateAll')}
         </Button>
         {ttsBusy && (
           <Button variant="ghost" size="sm" onClick={() => window.api.cancelTts()}>
-            <X className="size-4" />キャンセル
+            <X className="size-4" />{t('common.cancel')}
           </Button>
         )}
         {ttsBusy && tts.percent === 0 && (
-          <span className="text-xs text-muted-foreground">（初回はエンジン起動に時間がかかります）</span>
+          <span className="text-xs text-muted-foreground">{t('editor.engineStartHint')}</span>
         )}
-        {tts.status === 'error' && <span className="text-xs text-destructive">TTS失敗: {tts.error}</span>}
+        {tts.status === 'error' && (
+          <span className="text-xs text-destructive">{t('editor.ttsFailed', { message: tts.error })}</span>
+        )}
       </div>
 
       {/* 中央＝プレビュー / 右＝インスペクタ */}

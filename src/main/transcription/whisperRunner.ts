@@ -1,6 +1,7 @@
 // src/main/transcription/whisperRunner.ts
 import { spawn } from 'node:child_process';
 import { parseProgress } from './progress';
+import { tMain } from '../i18n';
 
 export interface WhisperRunInput {
   binPath: string;
@@ -53,7 +54,7 @@ export class SpawnWhisperRunner implements WhisperRunner {
       child.on('close', (code) => {
         input.signal?.removeEventListener('abort', onAbort);
         if (code === 0) resolve();
-        else reject(new Error(`whisper exited with code ${code}\n${stderrTail}`));
+        else reject(new Error(tMain('errors.whisperExitCode', { code, tail: stderrTail })));
       });
     });
   }

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ScreenRecorder } from '../recorder/screenRecorder';
 import { useEditor } from '../state/editorStore';
 import type { RecentProject } from '../global';
@@ -8,10 +9,11 @@ import { Circle, Square, FolderOpen, Play } from 'lucide-react';
 import { DependencyStatus } from './DependencyStatus';
 
 export function HomeScreen() {
+  const { t } = useTranslation();
   const { dispatch } = useEditor();
   const recorderRef = useRef<ScreenRecorder | null>(null);
   const [recording, setRecording] = useState(false);
-  const [status, setStatus] = useState('録画していません');
+  const [status, setStatus] = useState(() => t('home.statusIdle'));
   const [recent, setRecent] = useState<RecentProject[]>([]);
 
   const refreshRecent = () => { void window.api.recentProjects().then(setRecent); };
@@ -29,11 +31,11 @@ export function HomeScreen() {
       await window.api.startRecording();
       recorderRef.current = recorder;
       setRecording(true);
-      setStatus('録画中…');
+      setStatus(t('home.statusRecording'));
     } catch (err) {
       recorderRef.current = null;
       setRecording(false);
-      setStatus(`録画開始に失敗しました: ${String(err)}`);
+      setStatus(t('home.recordStartFailed', { message: String(err) }));
     }
   }
 
@@ -49,18 +51,18 @@ export function HomeScreen() {
       });
       setRecording(false);
       recorderRef.current = null;
-      setStatus(`保存しました（クリック ${res.clickCount} 件）。エディタを開きます…`);
+      setStatus(t('home.saveSucceeded', { count: res.clickCount }));
       await open(res.projectDir);
     } catch (err) {
       setRecording(false);
       recorderRef.current = null;
-      setStatus(`保存に失敗しました: ${String(err)}`);
+      setStatus(t('home.saveFailed', { message: String(err) }));
     }
   }
 
   return (
     <div className="mx-auto max-w-3xl p-8">
-      <h1 className="mb-6 text-2xl font-semibold tracking-tight">clip2manual</h1>
+      <h1 className="mb-6 text-2xl font-semibold tracking-tight">{t('home.title')}</h1>
       <div className="flex items-center gap-3">
         <Button
           onClick={recording ? onStop : onStart}
@@ -68,7 +70,7 @@ export function HomeScreen() {
           size="lg"
         >
           {recording ? <Square className="size-4" /> : <Circle className="size-4 fill-current" />}
-          {recording ? '停止して保存' : '録画開始'}
+          {recording ? t('home.recordStop') : t('home.recordStart')}
         </Button>
         <Button
           variant="secondary"
@@ -79,21 +81,21 @@ export function HomeScreen() {
           }
         >
           <FolderOpen className="size-4" />
-          フォルダから開く
+          {t('home.openFromFolder')}
         </Button>
       </div>
       <p className="mt-3 text-sm text-muted-foreground">{status}</p>
 
-      <h2 className="mt-8 mb-3 text-base font-medium">最近の録画</h2>
+      <h2 className="mt-8 mb-3 text-base font-medium">{t('home.recentTitle')}</h2>
       {recent.length === 0 ? (
-        <p className="text-sm text-muted-foreground">まだ録画がありません。</p>
+        <p className="text-sm text-muted-foreground">{t('home.recentEmpty')}</p>
       ) : (
         <div className="flex max-h-52 flex-col gap-2 overflow-y-auto pr-1">
           {recent.map((r) => (
             <Card key={r.projectDir} className="flex flex-row items-center gap-3 p-3">
               <Button size="sm" variant="ghost" onClick={() => open(r.projectDir)}>
                 <Play className="size-4" />
-                開く
+                {t('home.recentOpen')}
               </Button>
               <span className="font-medium">{r.name}</span>
               <span className="ml-auto text-xs text-muted-foreground">

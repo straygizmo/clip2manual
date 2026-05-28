@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect, type RefObject } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type Segment } from '../../shared/types';
 import { TtsPreviewController } from '../audio/ttsPreview';
 import { RippleCanvas } from './RippleCanvas';
@@ -31,6 +32,7 @@ export function PreviewPlayer({
   videoRef, audioRef, videoUrl, audioUrl, segments, projectDir, onTime, onDuration, onActiveSegment,
   exportRunning, exportPercent, onExport, onCancelExport, requestedMode,
 }: Props) {
+  const { t } = useTranslation();
   const [playing, setPlaying] = useState(false);
   const [mode, setMode] = useState<'original' | 'tts'>('original');
   const [ttsLoading, setTtsLoading] = useState(false);
@@ -160,21 +162,21 @@ export function PreviewPlayer({
         <audio ref={audioRef} src={audioUrl} />
       </div>
       <div className="flex shrink-0 flex-wrap items-center gap-3 bg-muted px-3 py-2 text-foreground">
-        <Button size="sm" onClick={togglePlay} disabled={ttsLoading}>{playing ? <Pause className="size-4" /> : <Play className="size-4" />}{playing ? '一時停止' : '再生'}</Button>
-        <span className="text-xs text-muted-foreground">音声:</span>
-        <Button size="sm" variant={mode === 'original' ? 'default' : 'secondary'} onClick={() => void switchMode('original')} disabled={mode === 'original' || ttsLoading}>元音声</Button>
-        <Button size="sm" variant={mode === 'tts' ? 'default' : 'secondary'} onClick={() => void switchMode('tts')} disabled={mode === 'tts' || ttsLoading}>TTS</Button>
-        {ttsLoading && <span className="text-xs text-muted-foreground">TTS読み込み中…</span>}
-        {missing && <span className="text-xs text-amber-500">TTS未生成のセグメントは無音で再生されます</span>}
+        <Button size="sm" onClick={togglePlay} disabled={ttsLoading}>{playing ? <Pause className="size-4" /> : <Play className="size-4" />}{playing ? t('preview.pause') : t('preview.play')}</Button>
+        <span className="text-xs text-muted-foreground">{t('preview.audioLabel')}</span>
+        <Button size="sm" variant={mode === 'original' ? 'default' : 'secondary'} onClick={() => void switchMode('original')} disabled={mode === 'original' || ttsLoading}>{t('preview.modeOriginal')}</Button>
+        <Button size="sm" variant={mode === 'tts' ? 'default' : 'secondary'} onClick={() => void switchMode('tts')} disabled={mode === 'tts' || ttsLoading}>{t('preview.modeTts')}</Button>
+        {ttsLoading && <span className="text-xs text-muted-foreground">{t('preview.ttsLoading')}</span>}
+        {missing && <span className="text-xs text-amber-500">{t('preview.missingTtsHint')}</span>}
         <div className="ml-auto flex items-center gap-2">
           {exportRunning && (
             <Button variant="ghost" size="sm" onClick={onCancelExport}>
-              <X className="size-4" />キャンセル
+              <X className="size-4" />{t('common.cancel')}
             </Button>
           )}
           <Button size="sm" onClick={onExport} disabled={exportRunning}>
             <Download className="size-4" />
-            {exportRunning ? `書き出し中… ${exportPercent}%` : '書き出し'}
+            {exportRunning ? t('preview.exporting', { percent: exportPercent }) : t('preview.export')}
           </Button>
         </div>
       </div>

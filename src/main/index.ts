@@ -5,10 +5,13 @@ import { registerAssetScheme, registerAssetProtocol } from './assetProtocol';
 import { stopVoicevoxEngine } from './ipc/tts';
 import { pickProxyFromEnv } from './provision/proxyConfig';
 import { setProxyCreds } from './provision/download';
+import { setMainLanguage } from './i18n';
 
 registerAssetScheme(); // app ready より前に呼ぶ
 
 function createWindow(): void {
+  // OSロケールを preload に同期的に渡す（renderer 側 i18n の初期化に使う）。
+  const locale = app.getLocale() || 'ja';
   const win = new BrowserWindow({
     width: 1100,
     height: 720,
@@ -16,6 +19,7 @@ function createWindow(): void {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      additionalArguments: [`--c2m-locale=${locale}`],
       // 録画中にウィンドウを背面化してもオーディオMediaRecorderが
       // スロットルされないようにする（getDisplayMediaの映像は影響を受けないが、
       // getUserMediaのマイク→MediaRecorderはレンダラ非アクティブ時に停止する）。
@@ -31,6 +35,9 @@ function createWindow(): void {
 }
 
 app.whenReady().then(async () => {
+  // OS ロケールに応じて main 側の言語を確定する（resolve* 系より前）。
+  setMainLanguage(app.getLocale());
+
   // HTTPS_PROXY/HTTP_PROXY/NO_PROXY が設定されていれば既定セッションに反映する。
   // net.fetch（provision/download.ts が使用）はこの設定を尊重する。
   // 環境変数が無ければ Chromium が Windows システムプロキシを自動採用する。

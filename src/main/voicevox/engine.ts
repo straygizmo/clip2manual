@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import * as path from 'node:path';
+import { tMain } from '../i18n';
 
 export interface EngineProcess {
   kill(): void;
@@ -36,7 +37,7 @@ export class VoicevoxEngine {
       await sleep(interval);
       if (await this.deps.probe()) return this.deps.baseUrl;
     }
-    throw new Error('VOICEVOX engine did not become ready in time');
+    throw new Error(tMain('errors.voicevoxEngineTimeout'));
   }
 
   stop(): void {

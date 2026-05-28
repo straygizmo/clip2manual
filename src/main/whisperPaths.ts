@@ -1,5 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { tMain } from './i18n';
 
 export class WhisperNotProvisionedError extends Error {
   constructor(message: string) {
@@ -15,7 +16,7 @@ export interface WhisperPaths {
 
 function assertExists(p: string): void {
   if (!fs.existsSync(p)) {
-    throw new WhisperNotProvisionedError(`whisper file not found: ${p}. Run: npm run setup:whisper`);
+    throw new WhisperNotProvisionedError(tMain('errors.whisperFileNotFound', { path: p }));
   }
 }
 
@@ -36,9 +37,7 @@ export function resolveWhisper(opts: { vendorDir?: string } = {}): WhisperPaths 
   const vendorDir = opts.vendorDir ?? path.join(process.cwd(), 'vendor', 'whisper');
   const manifestPath = path.join(vendorDir, 'manifest.json');
   if (!fs.existsSync(manifestPath)) {
-    throw new WhisperNotProvisionedError(
-      `whisper is not provisioned (${manifestPath} not found). Run: npm run setup:whisper`,
-    );
+    throw new WhisperNotProvisionedError(tMain('errors.whisperNotProvisioned', { path: manifestPath }));
   }
   const m = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as WhisperPaths;
   assertExists(m.binPath);

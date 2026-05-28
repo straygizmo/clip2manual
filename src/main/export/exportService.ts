@@ -8,6 +8,7 @@ import {
   segmentVideoArgs, segmentAudioArgs, concatArgs, muxArgs,
 } from './ffargs';
 import { generateRippleFramesForSlot, type GenerateRippleFramesInput } from './rippleFrames';
+import { tMain } from '../i18n';
 
 export interface ExportOptions {
   /** 書き出し対象の segments。enabled での絞り込みは computePreviewTimeline 内で行われる。 */
@@ -32,7 +33,7 @@ function listLine(p: string): string {
 }
 
 export async function runExport(opts: ExportOptions): Promise<void> {
-  if (opts.segments.length === 0) throw new Error('No segments to export');
+  if (opts.segments.length === 0) throw new Error(tMain('errors.noSegments'));
   const raw = path.join(opts.projectDir, 'assets/raw.webm');
   await fs.mkdir(opts.tmpDir, { recursive: true });
 
@@ -47,7 +48,7 @@ export async function runExport(opts: ExportOptions): Promise<void> {
   }
 
   const slots = computePreviewTimeline(opts.segments, clipDurations);
-  if (slots.length === 0) throw new Error('No enabled segments to export'); // 全カット等
+  if (slots.length === 0) throw new Error(tMain('errors.noEnabledSegments')); // 全カット等
   const total = slots.length + 3; // segments + 2 concat + 1 mux
   let done = 0;
   const tick = () => { done += 1; opts.onProgress?.(Math.round((done / total) * 100)); };
@@ -57,7 +58,7 @@ export async function runExport(opts: ExportOptions): Promise<void> {
   const videoParts: string[] = [];
   const audioParts: string[] = [];
   for (const slot of slots) {
-    if (opts.signal?.aborted) throw new Error('Export cancelled');
+    if (opts.signal?.aborted) throw new Error(tMain('errors.exportCancelled'));
     const segment = opts.segments.find((s) => s.id === slot.segmentId);
     const clicks = segment?.clicks ?? [];
     const ripple = await generate({

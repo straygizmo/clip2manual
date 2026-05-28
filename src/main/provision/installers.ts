@@ -5,6 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { userVendorDir } from './vendorDirs';
 import { download, extractZip, findNamed } from './download';
 import { apportionPercent } from './status';
+import { tMain } from '../i18n';
 
 // 既存 scripts/setup-*.mjs から移植（URL は当面ピン留め。404 時は更新）。
 // `C2M_*_URL` が設定されていればそれを最優先で使う（社内ミラー/modelscope/独自配布等）。
@@ -62,7 +63,7 @@ async function downloadFromFirstWorking(
       console.log(`[fallback] ${urls[i]} failed${next ? ', trying next mirror' : ' (no mirrors left)'}: ${String(err).slice(0, 200)}`);
     }
   }
-  throw lastErr ?? new Error('No download URLs configured');
+  throw lastErr ?? new Error(tMain('errors.noDownloadUrls'));
 }
 
 /**
@@ -99,7 +100,7 @@ export async function installWhisper(onProgress: OnProgress, signal?: AbortSigna
     onProgress(apportionPercent(1, 2, 100));
   }
 
-  if (!exePath) throw new Error('whisper executable not found after extraction');
+  if (!exePath) throw new Error(tMain('errors.whisperExeMissing'));
   writeFileSync(join(dir, 'manifest.json'), JSON.stringify({ binPath: exePath, modelPath }, null, 2));
   onProgress(100);
 }
@@ -140,7 +141,7 @@ export async function installVoicevox(onProgress: OnProgress, signal?: AbortSign
     runPath = findNamed(engineRoot, 'run.exe');
   }
 
-  if (!runPath) throw new Error('run.exe not found after extraction');
+  if (!runPath) throw new Error(tMain('errors.voicevoxRunMissing'));
   writeFileSync(join(dir, 'manifest.json'), JSON.stringify({ runPath }, null, 2));
   onProgress(100);
 }
@@ -172,7 +173,7 @@ export async function installFfmpeg(onProgress: OnProgress, signal?: AbortSignal
     onProgress(90);
   }
 
-  if (!ffmpegPath || !ffprobePath) throw new Error('ffmpeg/ffprobe not found after extraction');
+  if (!ffmpegPath || !ffprobePath) throw new Error(tMain('errors.ffmpegExeMissing'));
   writeFileSync(join(dir, 'manifest.json'), JSON.stringify({ ffmpegPath, ffprobePath }, null, 2));
   onProgress(100);
 }

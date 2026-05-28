@@ -163,6 +163,6 @@ describe('generateRippleFramesForSlot', () => {
     await expect(generateRippleFramesForSlot({
       slot, clicks: [{ t: 1.5, x: 0, y: 0, button: 1 }],
       fps: 10, videoW: 100, videoH: 100, outDir, signal: ac.signal,
-    })).rejects.toThrow(/cancel/i);
+    })).rejects.toThrow(/cancel|キャンセル/i);
   });
 });

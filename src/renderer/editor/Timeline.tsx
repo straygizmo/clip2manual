@@ -1,4 +1,5 @@
 import type React from 'react';
+import { useTranslation } from 'react-i18next';
 import { type Segment } from '../../shared/types';
 import { segmentRect, timeToPercent } from './timelineGeometry';
 import { cn } from '@/lib/utils';
@@ -20,6 +21,7 @@ export function Timeline({
   duration, currentTime, segments, selectedId, playingId,
   onSelect, onSeek, onSplitAtClick,
 }: Props) {
+  const { t } = useTranslation();
   const seekFromEvent = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const ratio = (e.clientX - rect.left) / rect.width;
@@ -41,8 +43,8 @@ export function Timeline({
 
   return (
     <div className="relative bg-timeline-bg p-2">
-      {row('映像', null)}
-      {row('セグメント', segments.map((s) => {
+      {row(t('timeline.video'), null)}
+      {row(t('timeline.segment'), segments.map((s) => {
         const r = segmentRect(s.videoStart, s.videoEnd, duration);
         return (
           <div
@@ -66,12 +68,12 @@ export function Timeline({
           </div>
         );
       }))}
-      {row('クリック', allClicks.map((c, i) => (
+      {row(t('timeline.click'), allClicks.map((c, i) => (
         <div
           key={`${c.segmentId}-${i}`}
           className="absolute size-4 cursor-pointer"
           style={{ top: ROW_H / 2 - 8, left: `calc(${timeToPercent(c.t, duration)}% - 8px)` }}
-          title="ダブルクリックで分割"
+          title={t('timeline.splitOnDoubleClick')}
           onClick={(e) => e.stopPropagation()}
           onDoubleClick={(e) => { e.stopPropagation(); onSplitAtClick?.(c.segmentId, c.t); }}
         >

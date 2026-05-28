@@ -8,7 +8,13 @@ export interface StopPayload {
   videoHeight: number;
 }
 
+// main 側 createWindow が additionalArguments で渡す --c2m-locale を読み取り、
+// renderer 側 i18n 初期化に同期的に提供する。
+const localeArg = process.argv.find((a) => a.startsWith('--c2m-locale='));
+const locale = localeArg ? localeArg.slice('--c2m-locale='.length) : 'ja';
+
 contextBridge.exposeInMainWorld('api', {
+  locale,
   startRecording: () => ipcRenderer.invoke('recording:start'),
   stopRecording: (payload: StopPayload) => ipcRenderer.invoke('recording:stop', payload),
 
