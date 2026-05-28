@@ -16,6 +16,10 @@ function createWindow(): void {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      // 録画中にウィンドウを背面化してもオーディオMediaRecorderが
+      // スロットルされないようにする（getDisplayMediaの映像は影響を受けないが、
+      // getUserMediaのマイク→MediaRecorderはレンダラ非アクティブ時に停止する）。
+      backgroundThrottling: false,
     },
   });
 
