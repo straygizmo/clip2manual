@@ -54,4 +54,9 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('setup:progress', listener);
     return () => { ipcRenderer.removeListener('setup:progress', listener); };
   },
+  onSetupStatusChanged: (cb: (s: { whisper: boolean; voicevox: boolean; ffmpeg: boolean }) => void) => {
+    const listener = (_e: unknown, s: { whisper: boolean; voicevox: boolean; ffmpeg: boolean }) => cb(s);
+    ipcRenderer.on('setup:statusChanged', listener);
+    return () => { ipcRenderer.removeListener('setup:statusChanged', listener); };
+  },
 });

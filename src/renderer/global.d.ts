@@ -47,6 +47,7 @@ declare global {
       runSetup: () => Promise<{ whisper: boolean; voicevox: boolean; ffmpeg: boolean }>;
       cancelSetup: () => Promise<{ ok: true }>;
       onSetupProgress: (cb: (p: { tool: string; percent: number }) => void) => () => void;
+      onSetupStatusChanged: (cb: (s: { whisper: boolean; voicevox: boolean; ffmpeg: boolean }) => void) => () => void;
     };
   }
 }

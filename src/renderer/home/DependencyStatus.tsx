@@ -23,6 +23,9 @@ export function DependencyStatus() {
 
   useEffect(() => { void window.api.setupStatus().then(setStatus); }, []);
   useEffect(() => window.api.onSetupProgress((p) => setProgress(p)), []);
+  // 1ツール成功ごとに main から届くスナップショットで badges を即時更新する
+  // （後続ツールが失敗して runSetup() 全体が reject されても成功分は反映済みになる）。
+  useEffect(() => window.api.onSetupStatusChanged((s) => setStatus(s)), []);
 
   if (!status) return null;
   const missing = TOOLS.filter((t) => !status[t]);

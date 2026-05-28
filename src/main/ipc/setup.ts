@@ -34,6 +34,9 @@ export function registerSetupIpc(): void {
       for (const tool of missing) {
         try {
           await installers[tool]((percent) => event.sender.send('setup:progress', { tool, percent }), currentAbort.signal);
+          // 1ツール成功ごとに status スナップショットを送って UI のバッジを即時更新する。
+          // 後続ツールが失敗して全体が reject されても、ここで送った成功分は反映済みになる。
+          event.sender.send('setup:statusChanged', status());
         } catch (err) {
           throw new Error(`${tool}: ${String(err)}`);
         }
