@@ -31,18 +31,18 @@ export function wrapJapanese(text: string, maxCols: number, maxLines: number): s
   }
   if (cur !== '') lines.push(cur);
 
+  const ellipsis = '…';
+  const ellipsisCols = colWidth(ellipsis);
   if (lines.length <= maxLines) return lines;
   const truncated = lines.slice(0, maxLines);
-  // 最後の行に「…」を追加（はみ出すなら末尾グラフェムを置換）
-  const lastLine = truncated[maxLines - 1];
-  const lastGraphemes = Array.from(segmenter.segment(lastLine), (s) => s.segment);
+  // 最後の行に「…」を入れる。入らなければ末尾グラフェムを順に削って入るまで詰める。
+  const lastGraphemes = Array.from(segmenter.segment(truncated[maxLines - 1]), (s) => s.segment);
   let cols = 0;
   for (const g of lastGraphemes) cols += colWidth(g);
-  if (cols + 1 <= maxCols) {
-    truncated[maxLines - 1] = lastLine + '…';
-  } else {
-    // 末尾グラフェムを「…」と置き換え
-    truncated[maxLines - 1] = lastGraphemes.slice(0, -1).join('') + '…';
+  while (cols + ellipsisCols > maxCols && lastGraphemes.length > 0) {
+    const popped = lastGraphemes.pop()!;
+    cols -= colWidth(popped);
   }
+  truncated[maxLines - 1] = lastGraphemes.join('') + ellipsis;
   return truncated;
 }

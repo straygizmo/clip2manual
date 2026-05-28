@@ -39,4 +39,24 @@ describe('wrapJapanese', () => {
     // maxCols=3 → 'a😀' (3) + 'b' (1)
     expect(wrapJapanese('a😀b', 3, 3)).toEqual(['a😀', 'b']);
   });
+
+  it('keeps truncated line within maxCols when ellipsis would overflow', () => {
+    // 'あいうえお' = 10 cols. maxCols=5, maxLines=1 → triggers truncation.
+    // Without the fix, would emit 'あ…' (4 cols) — fine in this case.
+    // But with a longer first line that has cols=5 exactly: e.g. text 'あいう' wraps as ['あい','う'] (no truncation).
+    // Force truncation past maxLines:
+    const out = wrapJapanese('あいうえお', 5, 1);
+    expect(out).toHaveLength(1);
+    // Verify final line never exceeds maxCols=5
+    // colWidth of 'あ…' = 2+2 = 4 ≤ 5; 'あい…' = 2+2+2 = 6 > 5 (must NOT be emitted)
+    expect(out[0]).toBe('あ…');
+  });
+
+  it('iteratively pops graphemes when ellipsis would push line past maxCols', () => {
+    // text 'aaaaa' (5 cols), force truncation to 1 line: ellipsis is 2 cols
+    // raw lastLine = 'aaaaa' (5 cols). 5 + 2 = 7 > 5. Pop 'a' → 4+2=6 > 5. Pop again → 3+2=5 ≤ 5. → 'aaa…'
+    const out = wrapJapanese('aaaaabbbbb', 5, 1);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toBe('aaa…');
+  });
 });
