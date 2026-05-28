@@ -1,5 +1,5 @@
 import { net, session } from 'electron';
-import { createWriteStream, readdirSync, statSync } from 'node:fs';
+import { createWriteStream, readdirSync, readFileSync, statSync } from 'node:fs';
 import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -104,13 +104,26 @@ export async function download(
   }
 }
 
-/** PowerShell Expand-Archive で zip を展開する（追加依存なし）。 */
+/** PowerShell Expand-Archive で zip を展開する（追加依存なし）。
+ *  失敗時は PowerShell の stderr ＋ zip の先頭バイト/サイズをエラー本文に含めて返す
+ *  （proxy が HTML エラーページを zip と偽装して返したケース等を即座に切り分けるため）。 */
 export function extractZip(zip: string, dest: string): void {
-  execFileSync(
-    'powershell',
-    ['-NoProfile', '-Command', `Expand-Archive -Path "${zip}" -DestinationPath "${dest}" -Force`],
-    { stdio: 'ignore', windowsHide: true },
-  );
+  try {
+    execFileSync(
+      'powershell',
+      ['-NoProfile', '-Command', `Expand-Archive -Path "${zip}" -DestinationPath "${dest}" -Force`],
+      { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true },
+    );
+  } catch (err) {
+    const e = err as { stderr?: Buffer; stdout?: Buffer; message?: string };
+    const ps = (e.stderr?.toString('utf8').trim() || e.stdout?.toString('utf8').trim() || e.message || 'unknown error');
+    let head = '';
+    try {
+      const buf = readFileSync(zip);
+      head = ` [size=${buf.length}, first16=${buf.subarray(0, 16).toString('hex')}]`;
+    } catch { /* zip already removed or unreadable — diag still useful without it */ }
+    throw new Error(`Expand-Archive failed for ${zip}: ${ps}${head}`);
+  }
 }
 
 /** dir 以下を再帰検索し、名前が target（小文字一致）の最初のファイルパスを返す。 */
