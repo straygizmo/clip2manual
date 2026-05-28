@@ -18,7 +18,6 @@
     "src/renderer/state/segmentOps.ts",
     "src/main/provision/paths.ts",
     "src/main/provision/status.ts",
-    "src/shared/subtitleSelect.ts",
     "test",
     "electron.vite.config.ts",
     "vitest.config.ts"

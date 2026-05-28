@@ -20,7 +20,7 @@ const segs = [
 describe('pickSubtitle', () => {
   it('returns null when showSubtitles is false', () => {
     expect(pickSubtitle({
-      segments: segs, showSubtitles: false, mode: 'original',
+      segments: segs, showSubtitles: false,
       cursor: { kind: 'original', videoTime: 1 },
     })).toBeNull();
   });
@@ -28,46 +28,46 @@ describe('pickSubtitle', () => {
   describe('original mode', () => {
     it('returns correctedText when within [videoStart, videoEnd)', () => {
       expect(pickSubtitle({
-        segments: segs, showSubtitles: true, mode: 'original',
+        segments: segs, showSubtitles: true,
         cursor: { kind: 'original', videoTime: 1 },
       })).toBe('hello');
     });
 
     it('falls back to originalText when correctedText is empty', () => {
       expect(pickSubtitle({
-        segments: segs, showSubtitles: true, mode: 'original',
+        segments: segs, showSubtitles: true,
         cursor: { kind: 'original', videoTime: 5 },
       })).toBe('original-c');
     });
 
     it('returns null when both texts are empty/whitespace', () => {
       expect(pickSubtitle({
-        segments: segs, showSubtitles: true, mode: 'original',
+        segments: segs, showSubtitles: true,
         cursor: { kind: 'original', videoTime: 3 },   // segment b: both empty
       })).toBeNull();
       expect(pickSubtitle({
-        segments: segs, showSubtitles: true, mode: 'original',
+        segments: segs, showSubtitles: true,
         cursor: { kind: 'original', videoTime: 7 },   // segment d: whitespace
       })).toBeNull();
     });
 
     it('skips disabled segments', () => {
       expect(pickSubtitle({
-        segments: segs, showSubtitles: true, mode: 'original',
+        segments: segs, showSubtitles: true,
         cursor: { kind: 'original', videoTime: 9 },   // segment e: disabled
       })).toBeNull();
     });
 
     it('treats videoEnd as exclusive', () => {
       expect(pickSubtitle({
-        segments: segs, showSubtitles: true, mode: 'original',
+        segments: segs, showSubtitles: true,
         cursor: { kind: 'original', videoTime: 2 },   // belongs to b, not a
       })).toBeNull();
     });
 
     it('returns null when no segment contains the time', () => {
       expect(pickSubtitle({
-        segments: segs, showSubtitles: true, mode: 'original',
+        segments: segs, showSubtitles: true,
         cursor: { kind: 'original', videoTime: 100 },
       })).toBeNull();
     });
@@ -76,34 +76,48 @@ describe('pickSubtitle', () => {
   describe('tts mode', () => {
     it('returns text while offsetInSlot < visibleDuration', () => {
       expect(pickSubtitle({
-        segments: segs, showSubtitles: true, mode: 'tts',
+        segments: segs, showSubtitles: true,
         cursor: { kind: 'tts', slotId: 'a', offsetInSlot: 1, visibleDuration: 2 },
       })).toBe('hello');
     });
 
     it('returns null once offsetInSlot >= visibleDuration (freeze/tail)', () => {
       expect(pickSubtitle({
-        segments: segs, showSubtitles: true, mode: 'tts',
+        segments: segs, showSubtitles: true,
         cursor: { kind: 'tts', slotId: 'a', offsetInSlot: 2, visibleDuration: 2 },
       })).toBeNull();
       expect(pickSubtitle({
-        segments: segs, showSubtitles: true, mode: 'tts',
+        segments: segs, showSubtitles: true,
         cursor: { kind: 'tts', slotId: 'a', offsetInSlot: 2.5, visibleDuration: 2 },
       })).toBeNull();
     });
 
     it('returns null when slotId is not found', () => {
       expect(pickSubtitle({
-        segments: segs, showSubtitles: true, mode: 'tts',
+        segments: segs, showSubtitles: true,
         cursor: { kind: 'tts', slotId: 'nope', offsetInSlot: 0, visibleDuration: 2 },
       })).toBeNull();
     });
 
     it('returns null when both texts are empty', () => {
       expect(pickSubtitle({
-        segments: segs, showSubtitles: true, mode: 'tts',
+        segments: segs, showSubtitles: true,
         cursor: { kind: 'tts', slotId: 'b', offsetInSlot: 0, visibleDuration: 2 },
       })).toBeNull();
     });
+  });
+
+  it('returns null when visibleDuration is 0 (zero-span TTS slot)', () => {
+    expect(pickSubtitle({
+      segments: segs, showSubtitles: true,
+      cursor: { kind: 'tts', slotId: 'a', offsetInSlot: 0, visibleDuration: 0 },
+    })).toBeNull();
+  });
+
+  it('returns null for empty segments array', () => {
+    expect(pickSubtitle({
+      segments: [], showSubtitles: true,
+      cursor: { kind: 'original', videoTime: 0 },
+    })).toBeNull();
   });
 });

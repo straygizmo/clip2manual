@@ -7,7 +7,6 @@ export type SubtitleCursor =
 export interface SubtitleSelectInput {
   segments: Segment[];
   showSubtitles: boolean;
-  mode: 'original' | 'tts';
   cursor: SubtitleCursor;
 }
 
