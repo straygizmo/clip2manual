@@ -46,7 +46,9 @@
     "ttsFailed": "TTS generation failed: {{message}}",
     "exportSuccess": "Export complete",
     "exportFailed": "Export failed",
-    "exportDoneMessage": "Exported: {{path}} ({{credit}})"
+    "exportDoneMessage": "Exported: {{path}} ({{credit}})",
+    "showSubtitles": "Subtitles",
+    "showSubtitlesTooltip": "Show subtitles in preview and exported MP4"
   },
   "inspector": {
     "selectPrompt": "Select a segment",

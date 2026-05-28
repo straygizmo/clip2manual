@@ -1,4 +1,4 @@
-import { type Project, type Segment, type SegmentVoice } from '../../shared/types';
+import { type Project, type Segment, type SegmentVoice, type ProjectSettings } from '../../shared/types';
 
 export interface TranscriptionState {
   status: 'idle' | 'running' | 'error';
@@ -39,7 +39,8 @@ export type EditorAction =
   | { type: 'TTS_PROGRESS'; percent: number }
   | { type: 'TTS_GENERATED'; segments: Segment[] }
   | { type: 'TTS_ERROR'; error: string }
-  | { type: 'SET_SEGMENTS'; segments: Segment[]; selectId?: string };
+  | { type: 'SET_SEGMENTS'; segments: Segment[]; selectId?: string }
+  | { type: 'SET_SETTINGS'; settings: ProjectSettings };
 
 export const initialEditorState: EditorState = {
   screen: 'home',
@@ -146,6 +147,12 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
         ...state,
         project: { ...state.project, segments: action.segments },
         selectedSegmentId: action.selectId ?? state.selectedSegmentId,
+      };
+    case 'SET_SETTINGS':
+      if (!state.project) return state;
+      return {
+        ...state,
+        project: { ...state.project, settings: action.settings },
       };
     default:
       return state;

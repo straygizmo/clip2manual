@@ -12,7 +12,8 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, FileText, Mic, X } from 'lucide-react';
+import { ArrowLeft, FileText, Mic, X, Subtitles } from 'lucide-react';
+import { pickSubtitle } from '../../shared/subtitleSelect';
 import { toast } from 'sonner';
 
 export function EditorLayout() {
@@ -29,6 +30,8 @@ export function EditorLayout() {
   );
   const [playingId, setPlayingId] = useState<string | null>(null);
   const handleActiveSegment = useCallback((id: string | null) => setPlayingId(id), []);
+  const [slotHint, setSlotHint] = useState<{ slotId: string; offsetInSlot: number; visibleDuration: number } | null>(null);
+  const onSlotProgress = useCallback((h: { slotId: string; offsetInSlot: number; visibleDuration: number } | null) => setSlotHint(h), []);
   const [requestedMode, setRequestedMode] = useState<{ mode: 'original' | 'tts' } | null>(null);
 
   // 文字起こし・TTS 進捗イベントの購読
@@ -48,6 +51,19 @@ export function EditorLayout() {
   const project = state.project;
   if (!project) return null;
   const segments = project.segments;
+  const showSubtitles = project.settings.showSubtitles;
+  const subtitleText = pickSubtitle(
+    slotHint
+      ? { segments, showSubtitles, cursor: { kind: 'tts', ...slotHint } }
+      : { segments, showSubtitles, cursor: { kind: 'original', videoTime: state.currentTime } },
+  );
+
+  function setShowSubtitles(next: boolean) {
+    const settings = { ...project!.settings, showSubtitles: next };
+    dispatch({ type: 'SET_SETTINGS', settings });
+    void window.api.updateSettings(settings);
+  }
+
   const selectedIndex = segments.findIndex((s) => s.id === state.selectedSegmentId);
   const selected = selectedIndex >= 0 ? segments[selectedIndex] : null;
 
@@ -221,6 +237,19 @@ export function EditorLayout() {
 
         <Separator orientation="vertical" className="h-6" />
 
+        <label className="flex items-center gap-1 text-xs" title={t('editor.showSubtitlesTooltip')}>
+          <Subtitles className="size-4" />
+          <input
+            type="checkbox"
+            checked={showSubtitles}
+            onChange={(e) => setShowSubtitles(e.currentTarget.checked)}
+            className="size-4"
+          />
+          {t('editor.showSubtitles')}
+        </label>
+
+        <Separator orientation="vertical" className="h-6" />
+
         <Button variant="secondary" size="sm" onClick={generateAll} disabled={ttsBusy}>
           <Mic className="size-4" />
           {ttsBusy ? t('editor.generating', { percent: tts.percent }) : t('editor.generateAll')}
@@ -255,6 +284,8 @@ export function EditorLayout() {
           onExport={doExport}
           onCancelExport={() => window.api.cancelExport()}
           requestedMode={requestedMode}
+          subtitleText={subtitleText}
+          onSlotProgress={onSlotProgress}
         />
         <div className="overflow-auto border-l border-border">
           <Inspector

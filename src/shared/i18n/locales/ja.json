@@ -46,7 +46,9 @@
     "ttsFailed": "TTS生成に失敗しました: {{message}}",
     "exportSuccess": "書き出し完了",
     "exportFailed": "書き出しに失敗しました",
-    "exportDoneMessage": "書き出し完了: {{path}}（{{credit}}）"
+    "exportDoneMessage": "書き出し完了: {{path}}（{{credit}}）",
+    "showSubtitles": "字幕",
+    "showSubtitlesTooltip": "プレビューと書き出しMP4に字幕を表示します"
   },
   "inspector": {
     "selectPrompt": "セグメントを選択してください",
