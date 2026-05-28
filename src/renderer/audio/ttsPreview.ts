@@ -1,11 +1,19 @@
 import { type Segment } from '../../shared/types';
 import { computePreviewTimeline, type PreviewSlot } from '../../shared/previewTimeline';
 
+export interface SlotProgressHint {
+  slotId: string;
+  offsetInSlot: number;
+  visibleDuration: number;  // = clipDuration > 0 ? clipDuration : videoSpan
+}
+
 export interface TtsPreviewCallbacks {
   onActiveSegment?: (segmentId: string | null) => void;
   /** 現在の映像時刻（秒）。再生ヘッド表示用。 */
   onTime?: (videoTime: number) => void;
   onEnded?: () => void;
+  /** rAF 毎に現スロットの進捗を通知。フリーズ/tail/停止中は null。 */
+  onSlotProgress?: (hint: SlotProgressHint | null) => void;
 }
 
 const DRIFT_THRESHOLD = 0.25; // 秒。再生中、これを超えたら映像時刻を補正する。
@@ -114,6 +122,7 @@ export class TtsPreviewController {
     this.teardown();
     this.playing = false;
     this.video?.pause();
+    this.cb.onSlotProgress?.(null);
   }
 
   stop(): void {
@@ -127,6 +136,7 @@ export class TtsPreviewController {
       this.activeId = null;
       this.cb.onActiveSegment?.(null);
     }
+    this.cb.onSlotProgress?.(null);
     // 開いたままの AudioContext は <audio> 要素（元ナレーション）の音声出力を歪ませる
     // （ノイズ化する）ことがあるため、TTS から離れる際にクローズして音声出力デバイスを
     // 解放する。decodeToWav と同じ方針。次回 TTS は load() が ctx を作り直す。
@@ -158,6 +168,8 @@ export class TtsPreviewController {
       const videoSpan = Math.max(0, slot.videoEnd - slot.videoStart);
       // 再生ヘッド用に現在の映像時刻を通知（区間内は進行、区間外は末尾で保持）
       this.cb.onTime?.(offset < videoSpan ? slot.videoStart + offset : slot.videoEnd);
+      const visibleDuration = slot.clipDuration > 0 ? slot.clipDuration : videoSpan;
+      this.cb.onSlotProgress?.({ slotId: slot.segmentId, offsetInSlot: offset, visibleDuration });
       if (offset < videoSpan) {
         if (this.video.paused) void this.video.play().catch(() => {});
         const target = slot.videoStart + offset;
@@ -166,6 +178,8 @@ export class TtsPreviewController {
         if (!this.video.paused) this.video.pause();
         if (Math.abs(this.video.currentTime - slot.videoEnd) > FREEZE_THRESHOLD) this.video.currentTime = slot.videoEnd;
       }
+    } else {
+      this.cb.onSlotProgress?.(null);
     }
     this.rafId = requestAnimationFrame(this.tick);
   };
@@ -177,6 +191,7 @@ export class TtsPreviewController {
     this.positionTime = 0;
     this.activeId = null;
     this.cb.onActiveSegment?.(null);
+    this.cb.onSlotProgress?.(null);
     this.cb.onEnded?.();
   }
 
