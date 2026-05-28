@@ -2,6 +2,7 @@
 import { ipcMain } from 'electron';
 import { projectSession } from '../projectSession';
 import { resolveVoicevox } from '../voicevox/voicevoxPaths';
+import { vendorDir } from '../provision/vendorDirs';
 import { VoicevoxEngine, defaultEngineDeps } from '../voicevox/engine';
 import { synthesize, fetchSpeakers, flattenSpeakers, type SynthesizeInput } from '../voicevox/ttsClient';
 import { generateTts, type TtsClient } from '../voicevox/ttsService';
@@ -12,7 +13,7 @@ let currentAbort: AbortController | null = null;
 /** 未プロビジョニング時は resolveVoicevox が VoicevoxNotProvisionedError を投げ、レンダラに伝わる。 */
 function getEngine(): VoicevoxEngine {
   if (!engine) {
-    const { runPath } = resolveVoicevox();
+    const { runPath } = resolveVoicevox({ vendorDir: vendorDir('voicevox') });
     engine = new VoicevoxEngine(defaultEngineDeps(runPath));
   }
   return engine;

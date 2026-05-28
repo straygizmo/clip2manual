@@ -4,6 +4,7 @@ import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import { projectSession } from '../projectSession';
 import { resolveFfmpeg } from '../ffmpegPaths';
+import { vendorDir } from '../provision/vendorDirs';
 import { runExport } from '../export/exportService';
 import { runFfmpeg, runProbe } from '../export/ffmpegRunner';
 
@@ -24,7 +25,7 @@ export function registerExportIpc(): void {
   ipcMain.handle('export:run', async (event, outPath: string) => {
     if (currentAbort) throw new Error('書き出しが既に実行中です');
     const { dir, project } = projectSession.getCurrent();
-    const { ffmpegPath, ffprobePath } = resolveFfmpeg();
+    const { ffmpegPath, ffprobePath } = resolveFfmpeg({ vendorDir: vendorDir('ffmpeg') });
     const tmpDir = path.join(dir, 'export-tmp');
     currentAbort = new AbortController();
     try {
