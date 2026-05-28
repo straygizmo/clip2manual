@@ -6,6 +6,7 @@ import { Inspector } from './Inspector';
 import { decodeToWav } from '../audio/decodeToWav';
 import { projectAssetUrl } from './assetUrl';
 import { type SpeakerOption } from '../../shared/types';
+import { splitAt } from '../state/segmentOps';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
@@ -51,6 +52,14 @@ export function EditorLayout() {
     if (videoRef.current) videoRef.current.currentTime = t;
     if (audioRef.current) audioRef.current.currentTime = t;
     dispatch({ type: 'SET_CURRENT_TIME', time: t });
+  };
+
+  const onSplitAtClick = (segmentId: string, t: number) => {
+    const newId = `seg-${Date.now()}`;
+    const next = splitAt(segments, segmentId, t, newId);
+    if (next === segments) return; // no-op（c.t == videoStart 等の境界）
+    dispatch({ type: 'SET_SEGMENTS', segments: next, selectId: newId });
+    void window.api.updateSegments(next);
   };
 
   async function runTranscription() {
@@ -255,6 +264,7 @@ export function EditorLayout() {
         playingId={playingId}
         onSelect={(id) => dispatch({ type: 'SELECT_SEGMENT', id })}
         onSeek={seek}
+        onSplitAtClick={onSplitAtClick}
       />
     </div>
   );
