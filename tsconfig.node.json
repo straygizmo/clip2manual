@@ -15,6 +15,7 @@
     "src/renderer/editor/rippleOverlay.ts",
     "src/renderer/state/editorReducer.ts",
     "src/renderer/state/segmentOps.ts",
+    "src/main/provision/paths.ts",
     "test",
     "electron.vite.config.ts",
     "vitest.config.ts"
