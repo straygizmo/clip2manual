@@ -5,6 +5,7 @@ import type { RecentProject } from '../global';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Circle, Square, FolderOpen, Play } from 'lucide-react';
+import { DependencyStatus } from './DependencyStatus';
 
 export function HomeScreen() {
   const { dispatch } = useEditor();
@@ -102,6 +103,7 @@ export function HomeScreen() {
           ))}
         </div>
       )}
+      <DependencyStatus />
     </div>
   );
 }
