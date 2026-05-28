@@ -30,7 +30,21 @@ app.whenReady().then(async () => {
   // net.fetch（provision/download.ts が使用）はこの設定を尊重する。
   // 環境変数が無ければ Chromium が Windows システムプロキシを自動採用する。
   const proxy = pickProxyFromEnv(process.env);
-  if (proxy) await session.defaultSession.setProxy(proxy);
+  if (proxy) {
+    await session.defaultSession.setProxy({
+      proxyRules: proxy.proxyRules,
+      ...(proxy.proxyBypassRules ? { proxyBypassRules: proxy.proxyBypassRules } : {}),
+    });
+    // 407 (Proxy Authentication Required) はここで応答する。
+    // 認証情報は HTTPS_PROXY の URL に user[:pass]@ で埋め込まれた値を使う。
+    if (proxy.username) {
+      app.on('login', (event, _wc, _req, authInfo, callback) => {
+        if (!authInfo.isProxy) return; // サーバ側 401 はスルー
+        event.preventDefault();
+        callback(proxy.username, proxy.password ?? '');
+      });
+    }
+  }
 
   // audio: 'loopback' is ignored by the renderer (it calls getDisplayMedia with audio:false);
   // narration is captured separately via getUserMedia (the microphone) in ScreenRecorder.

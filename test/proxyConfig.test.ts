@@ -40,8 +40,12 @@ describe('pickProxyFromEnv', () => {
     expect(pickProxyFromEnv({ HTTPS_PROXY: 'https://proxy.corp:8443' })).toEqual({ proxyRules: 'proxy.corp:8443' });
   });
 
-  it('strips embedded user:pass auth and trailing slash', () => {
-    expect(pickProxyFromEnv({ HTTPS_PROXY: 'http://user:pass@proxy.corp:8080/' })).toEqual({ proxyRules: 'proxy.corp:8080' });
+  it('strips embedded auth and trailing slash from proxyRules (auth is surfaced separately)', () => {
+    expect(pickProxyFromEnv({ HTTPS_PROXY: 'http://user:pass@proxy.corp:8080/' })).toEqual({
+      proxyRules: 'proxy.corp:8080',
+      username: 'user',
+      password: 'pass',
+    });
   });
 
   it('keeps socks://, socks4://, socks5:// prefixes intact (Chromium supports those)', () => {
@@ -55,5 +59,35 @@ describe('pickProxyFromEnv', () => {
 
   it('returns null when value is only whitespace', () => {
     expect(pickProxyFromEnv({ HTTPS_PROXY: '   ' })).toBeNull();
+  });
+
+  // Credentials — Electron's setProxy ignores embedded auth; we surface them so the
+  // app's `login` handler can answer 407 challenges.
+
+  it('extracts username and password from URL form', () => {
+    expect(pickProxyFromEnv({ HTTPS_PROXY: 'http://user:pass@proxy:8080' })).toEqual({
+      proxyRules: 'proxy:8080',
+      username: 'user',
+      password: 'pass',
+    });
+  });
+
+  it('extracts username only when no password is given', () => {
+    expect(pickProxyFromEnv({ HTTPS_PROXY: 'http://user@proxy:8080' })).toEqual({
+      proxyRules: 'proxy:8080',
+      username: 'user',
+    });
+  });
+
+  it('percent-decodes user/password (so DOMAIN\\user etc. round-trip)', () => {
+    expect(pickProxyFromEnv({ HTTPS_PROXY: 'http://user%40domain:p%3Ass@proxy:8080' })).toEqual({
+      proxyRules: 'proxy:8080',
+      username: 'user@domain',
+      password: 'p:ss',
+    });
+  });
+
+  it('returns no credentials for bare host:port', () => {
+    expect(pickProxyFromEnv({ HTTPS_PROXY: 'proxy:8080' })).toEqual({ proxyRules: 'proxy:8080' });
   });
 });
