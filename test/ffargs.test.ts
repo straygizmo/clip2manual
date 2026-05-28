@@ -60,6 +60,38 @@ describe('segmentVideoArgs', () => {
     expect(args.indexOf('-t')).toBeLessThan(args.indexOf('-i'));
     expect(args[args.length - 1]).toBe('o.mp4');
   });
+
+  it('without ripple: keeps the original -vf form and -ss/-t before -i', () => {
+    const args = segmentVideoArgs({ rawPath: 'raw.webm', slot, outPath: 'o.mp4', fps: 30 });
+    expect(args).toContain('-vf');
+    expect(args).not.toContain('-filter_complex');
+    expect(args).not.toContain('-map');
+    expect(args.indexOf('-t')).toBeLessThan(args.indexOf('-i'));
+  });
+
+  it('with ripple: uses filter_complex overlay and -map [vout]', () => {
+    const args = segmentVideoArgs({
+      rawPath: 'raw.webm', slot, outPath: 'o.mp4', fps: 30,
+      ripple: { pattern: 'tmp/seg-001_ripple/%05d.png', fps: 30 },
+    });
+    expect(args).toContain('-filter_complex');
+    expect(args).toContain('-map');
+    expect(args).toContain('[vout]');
+    expect(args).not.toContain('-vf');
+    const fcIdx = args.indexOf('-filter_complex');
+    const fc = args[fcIdx + 1];
+    expect(fc).toContain('tpad=stop_mode=clone');
+    expect(fc).toContain('overlay=shortest=1');
+    // PNG seq が第2入力で、-framerate がその直前
+    const inputs = args.reduce<number[]>((acc, a, i) => (a === '-i' ? [...acc, i] : acc), []);
+    expect(inputs).toHaveLength(2);
+    expect(args[inputs[1] - 2]).toBe('-framerate');
+    expect(args[inputs[1] - 1]).toBe('30');
+    expect(args[inputs[1] + 1]).toBe('tmp/seg-001_ripple/%05d.png');
+    // -ss/-t は依然 -i raw.webm の前（入力オプション）
+    expect(args.indexOf('-ss')).toBeLessThan(inputs[0]);
+    expect(args.indexOf('-t')).toBeLessThan(inputs[0]);
+  });
 });
 
 describe('segmentAudioArgs', () => {

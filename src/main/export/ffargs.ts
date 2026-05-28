@@ -47,20 +47,43 @@ export function parseResolution(stdout: string): { width: number; height: number
   return { width, height };
 }
 
-/** raw 映像のスロット区間を切り出し、末尾フレームを slotDuration までフリーズして均一H.264で出力。 */
-export function segmentVideoArgs(input: { rawPath: string; slot: PreviewSlot; outPath: string; fps: number }): string[] {
-  const { rawPath, slot, outPath, fps } = input;
+/** raw 映像のスロット区間を切り出し、末尾フレームを slotDuration までフリーズして均一H.264で出力。
+ *  ripple 指定時は image2 を第2入力にして overlay を挿入する。 */
+export function segmentVideoArgs(input: {
+  rawPath: string;
+  slot: PreviewSlot;
+  outPath: string;
+  fps: number;
+  ripple?: { pattern: string; fps: number };
+}): string[] {
+  const { rawPath, slot, outPath, fps, ripple } = input;
   const videoSpan = Math.max(0, slot.videoEnd - slot.videoStart);
   const freeze = Math.max(0, slot.slotDuration - videoSpan);
+  const tpadChain = `tpad=stop_mode=clone:stop_duration=${freeze},fps=${fps},setpts=PTS-STARTPTS`;
   // -ss/-t は -i より前（入力オプション）に置く。こうすると入力が videoSpan で EOF になり、
   // tpad が末尾フレームをクローンできる。-t を -i より後（出力オプション）にすると tpad が
   // EOF を受け取れずフリーズが発生しない。
+  if (ripple) {
+    return [
+      '-y',
+      '-ss', String(slot.videoStart),
+      '-t', String(videoSpan),
+      '-i', rawPath,
+      '-framerate', String(ripple.fps),
+      '-i', ripple.pattern,
+      '-filter_complex', `[0:v] ${tpadChain} [vbase]; [vbase][1:v] overlay=shortest=1 [vout]`,
+      '-map', '[vout]',
+      '-an',
+      ...VIDEO_ENCODE,
+      outPath,
+    ];
+  }
   return [
     '-y',
     '-ss', String(slot.videoStart),
     '-t', String(videoSpan),
     '-i', rawPath,
-    '-vf', `tpad=stop_mode=clone:stop_duration=${freeze},fps=${fps},setpts=PTS-STARTPTS`,
+    '-vf', tpadChain,
     '-an',
     ...VIDEO_ENCODE,
     outPath,
