@@ -6,23 +6,64 @@ import { userVendorDir } from './vendorDirs';
 import { download, extractZip, findNamed } from './download';
 import { apportionPercent } from './status';
 
-// 既存 scripts/setup-*.mjs から移植（URL は当面ピン留め。404 時は更新）
+// 既存 scripts/setup-*.mjs から移植（URL は当面ピン留め。404 時は更新）。
+// `C2M_*_URL` が設定されていればそれを最優先で使う（社内ミラー/modelscope/独自配布等）。
+// env 指定があれば自動フォールバック（HF→hf-mirror）は無効化し、ユーザー指定だけを使う。
+
+const env = process.env;
 
 // whisper.cpp v1.8.4 — scripts/setup-whisper.mjs と同一
 const WHISPER_VERSION = 'v1.8.4';
-const WHISPER_BIN_URL = `https://github.com/ggerganov/whisper.cpp/releases/download/${WHISPER_VERSION}/whisper-bin-x64.zip`;
-const WHISPER_MODEL_URL = 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin';
+const WHISPER_BIN_URLS: string[] = env.C2M_WHISPER_BIN_URL
+  ? [env.C2M_WHISPER_BIN_URL]
+  : [`https://github.com/ggerganov/whisper.cpp/releases/download/${WHISPER_VERSION}/whisper-bin-x64.zip`];
+// HF が遮断されたコーポレート環境では自動で hf-mirror に切り替わる（URL 構造ごとミラー）。
+const WHISPER_MODEL_URLS: string[] = env.C2M_WHISPER_MODEL_URL
+  ? [env.C2M_WHISPER_MODEL_URL]
+  : [
+      'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin',
+      'https://hf-mirror.com/ggerganov/whisper.cpp/resolve/main/ggml-small.bin',
+    ];
 
 // VOICEVOX ENGINE 0.25.2 Windows CPU — scripts/setup-voicevox.mjs と同一
 // 配布物は単一パートの .7z.001。7zr が .001 を指定すれば全体を展開する。
 const VOICEVOX_VERSION = '0.25.2';
-const VOICEVOX_ENGINE_URL = `https://github.com/VOICEVOX/voicevox_engine/releases/download/${VOICEVOX_VERSION}/voicevox_engine-windows-cpu-${VOICEVOX_VERSION}.7z.001`;
-const SEVENZR_URL = 'https://www.7-zip.org/a/7zr.exe';
+const VOICEVOX_ENGINE_URLS: string[] = env.C2M_VOICEVOX_ENGINE_URL
+  ? [env.C2M_VOICEVOX_ENGINE_URL]
+  : [`https://github.com/VOICEVOX/voicevox_engine/releases/download/${VOICEVOX_VERSION}/voicevox_engine-windows-cpu-${VOICEVOX_VERSION}.7z.001`];
+const SEVENZR_URLS: string[] = env.C2M_SEVENZR_URL
+  ? [env.C2M_SEVENZR_URL]
+  : ['https://www.7-zip.org/a/7zr.exe'];
 
 // gyan.dev release-essentials — scripts/setup-ffmpeg.mjs と同一
-const FFMPEG_ZIP_URL = 'https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip';
+const FFMPEG_ZIP_URLS: string[] = env.C2M_FFMPEG_ZIP_URL
+  ? [env.C2M_FFMPEG_ZIP_URL]
+  : ['https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip'];
 
 type OnProgress = (percent: number) => void;
+
+/** urls を順に試し、最初に成功したものを採用する。ユーザーキャンセル時は再試行しない。 */
+async function downloadFromFirstWorking(
+  urls: string[],
+  dest: string,
+  onProgress?: OnProgress,
+  signal?: AbortSignal,
+): Promise<void> {
+  let lastErr: Error | null = null;
+  for (let i = 0; i < urls.length; i++) {
+    try {
+      await download(urls[i], dest, onProgress, signal);
+      if (i > 0) console.log(`[fallback] succeeded via mirror: ${urls[i]}`);
+      return;
+    } catch (err) {
+      if (signal?.aborted) throw err;
+      lastErr = err as Error;
+      const next = i + 1 < urls.length;
+      console.log(`[fallback] ${urls[i]} failed${next ? ', trying next mirror' : ' (no mirrors left)'}: ${String(err).slice(0, 200)}`);
+    }
+  }
+  throw lastErr ?? new Error('No download URLs configured');
+}
 
 /**
  * whisper-cli.exe + ggml-small.bin を取得し manifest { binPath, modelPath } を書く。
@@ -38,7 +79,7 @@ export async function installWhisper(onProgress: OnProgress, signal?: AbortSigna
 
   // Step 0/2: model
   if (!existsSync(modelPath)) {
-    await download(WHISPER_MODEL_URL, modelPath, (p) => onProgress(apportionPercent(0, 2, p)), signal);
+    await downloadFromFirstWorking(WHISPER_MODEL_URLS, modelPath, (p) => onProgress(apportionPercent(0, 2, p)), signal);
   } else {
     onProgress(apportionPercent(0, 2, 100));
   }
@@ -47,7 +88,7 @@ export async function installWhisper(onProgress: OnProgress, signal?: AbortSigna
   let exePath: string | null = existsSync(binDir) ? findWhisperExe(binDir) : null;
   if (!exePath) {
     try {
-      await download(WHISPER_BIN_URL, zipPath, (p) => onProgress(apportionPercent(1, 2, p)), signal);
+      await downloadFromFirstWorking(WHISPER_BIN_URLS, zipPath, (p) => onProgress(apportionPercent(1, 2, p)), signal);
       mkdirSync(binDir, { recursive: true });
       extractZip(zipPath, binDir);
     } finally {
@@ -84,8 +125,8 @@ export async function installVoicevox(onProgress: OnProgress, signal?: AbortSign
   // Skip extraction if run.exe already present (matches setup-voicevox.mjs)
   let runPath: string | null = existsSync(engineRoot) ? findNamed(engineRoot, 'run.exe') : null;
   if (!runPath) {
-    if (!existsSync(sevenZr)) await download(SEVENZR_URL, sevenZr, undefined, signal);
-    await download(VOICEVOX_ENGINE_URL, archivePath, (p) => onProgress(Math.round(p * 0.9)), signal);
+    if (!existsSync(sevenZr)) await downloadFromFirstWorking(SEVENZR_URLS, sevenZr, undefined, signal);
+    await downloadFromFirstWorking(VOICEVOX_ENGINE_URLS, archivePath, (p) => onProgress(Math.round(p * 0.9)), signal);
     mkdirSync(engineRoot, { recursive: true });
     try {
       execFileSync(sevenZr, ['x', archivePath, `-o${engineRoot}`, '-y'], {
@@ -119,7 +160,7 @@ export async function installFfmpeg(onProgress: OnProgress, signal?: AbortSignal
   let ffprobePath: string | null = existsSync(extractDir) ? findNamed(extractDir, 'ffprobe.exe') : null;
   if (!ffmpegPath || !ffprobePath) {
     try {
-      await download(FFMPEG_ZIP_URL, zipPath, (p) => onProgress(Math.round(p * 0.9)), signal);
+      await downloadFromFirstWorking(FFMPEG_ZIP_URLS, zipPath, (p) => onProgress(Math.round(p * 0.9)), signal);
       mkdirSync(extractDir, { recursive: true });
       extractZip(zipPath, extractDir);
     } finally {
