@@ -31,6 +31,22 @@ export function parseFps(stdout: string): number {
   throw new Error(`Cannot parse ffprobe fps: ${JSON.stringify(stdout)}`);
 }
 
+export function probeResolutionArgs(file: string): string[] {
+  return ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height', '-of', 'csv=s=,:p=0', file];
+}
+
+export function parseResolution(stdout: string): { width: number; height: number } {
+  const s = stdout.trim();
+  const m = s.match(/^(\d+)\s*,\s*(\d+)$/);
+  if (!m) throw new Error(`Cannot parse ffprobe resolution: ${JSON.stringify(stdout)}`);
+  const width = Number(m[1]);
+  const height = Number(m[2]);
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    throw new Error(`Bad resolution: ${JSON.stringify(stdout)}`);
+  }
+  return { width, height };
+}
+
 /** raw 映像のスロット区間を切り出し、末尾フレームを slotDuration までフリーズして均一H.264で出力。 */
 export function segmentVideoArgs(input: { rawPath: string; slot: PreviewSlot; outPath: string; fps: number }): string[] {
   const { rawPath, slot, outPath, fps } = input;

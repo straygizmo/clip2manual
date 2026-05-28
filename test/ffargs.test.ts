@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   probeDurationArgs, parseProbeDuration, probeFpsArgs, parseFps,
+  probeResolutionArgs, parseResolution,
   segmentVideoArgs, segmentAudioArgs, concatArgs, muxArgs,
 } from '../src/main/export/ffargs';
 import { type PreviewSlot } from '../src/shared/previewTimeline';
@@ -26,6 +27,23 @@ describe('probe parsing', () => {
     expect(probeDurationArgs('a.wav')).toContain('a.wav');
     expect(probeDurationArgs('a.wav').join(' ')).toContain('format=duration');
     expect(probeFpsArgs('v.webm').join(' ')).toContain('r_frame_rate');
+  });
+  it('probeResolutionArgs queries width,height of first video stream', () => {
+    const s = probeResolutionArgs('v.webm').join(' ');
+    expect(s).toContain('-select_streams v:0');
+    expect(s).toContain('stream=width,height');
+    expect(s).toContain('v.webm');
+  });
+  it('parseResolution parses "1920,1080"', () => {
+    expect(parseResolution('1920,1080\n')).toEqual({ width: 1920, height: 1080 });
+  });
+  it('parseResolution accepts whitespace', () => {
+    expect(parseResolution(' 1280 , 720 \n')).toEqual({ width: 1280, height: 720 });
+  });
+  it('parseResolution throws on garbage', () => {
+    expect(() => parseResolution('N/A')).toThrow();
+    expect(() => parseResolution('1920')).toThrow();
+    expect(() => parseResolution('0,0')).toThrow();
   });
 });
 
