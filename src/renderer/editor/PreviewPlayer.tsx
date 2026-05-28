@@ -3,7 +3,7 @@ import { type Segment } from '../../shared/types';
 import { TtsPreviewController } from '../audio/ttsPreview';
 import { RippleCanvas } from './RippleCanvas';
 import { Button } from '@/components/ui/button';
-import { Play, Pause } from 'lucide-react';
+import { Play, Pause, Download, X } from 'lucide-react';
 
 interface Props {
   videoRef: RefObject<HTMLVideoElement>;
@@ -15,6 +15,10 @@ interface Props {
   onTime: (t: number) => void;
   onDuration: (d: number) => void;
   onActiveSegment: (id: string | null) => void;
+  exportRunning: boolean;
+  exportPercent: number;
+  onExport: () => void;
+  onCancelExport: () => void;
 }
 
 /**
@@ -23,6 +27,7 @@ interface Props {
  */
 export function PreviewPlayer({
   videoRef, audioRef, videoUrl, audioUrl, segments, projectDir, onTime, onDuration, onActiveSegment,
+  exportRunning, exportPercent, onExport, onCancelExport,
 }: Props) {
   const [playing, setPlaying] = useState(false);
   const [mode, setMode] = useState<'original' | 'tts'>('original');
@@ -150,6 +155,17 @@ export function PreviewPlayer({
         <Button size="sm" variant={mode === 'tts' ? 'default' : 'secondary'} onClick={() => void switchMode('tts')} disabled={mode === 'tts' || ttsLoading}>TTS</Button>
         {ttsLoading && <span className="text-xs text-muted-foreground">TTS読み込み中…</span>}
         {missing && <span className="text-xs text-amber-500">TTS未生成のセグメントは無音で再生されます</span>}
+        <div className="ml-auto flex items-center gap-2">
+          {exportRunning && (
+            <Button variant="ghost" size="sm" onClick={onCancelExport}>
+              <X className="size-4" />キャンセル
+            </Button>
+          )}
+          <Button size="sm" onClick={onExport} disabled={exportRunning}>
+            <Download className="size-4" />
+            {exportRunning ? `書き出し中… ${exportPercent}%` : '書き出し'}
+          </Button>
+        </div>
       </div>
     </div>
   );

@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, FileText, Mic, Download, X } from 'lucide-react';
+import { ArrowLeft, FileText, Mic, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function EditorLayout() {
@@ -213,20 +213,6 @@ export function EditorLayout() {
           <span className="text-xs text-muted-foreground">（初回はエンジン起動に時間がかかります）</span>
         )}
         {tts.status === 'error' && <span className="text-xs text-destructive">TTS失敗: {tts.error}</span>}
-
-        <Separator orientation="vertical" className="h-6" />
-
-        <Button size="sm" onClick={doExport} disabled={exportState.status === 'running'}>
-          <Download className="size-4" />
-          {exportState.status === 'running' ? `書き出し中… ${exportState.percent}%` : '書き出し'}
-        </Button>
-        {exportState.status === 'running' && (
-          <Button variant="ghost" size="sm" onClick={() => window.api.cancelExport()}>
-            <X className="size-4" />キャンセル
-          </Button>
-        )}
-        {exportState.status === 'done' && <span className="text-xs text-primary">{exportState.message}</span>}
-        {exportState.status === 'error' && <span className="text-xs text-destructive">書き出し失敗: {exportState.message}</span>}
       </div>
 
       {/* 中央＝プレビュー / 右＝インスペクタ */}
@@ -241,6 +227,10 @@ export function EditorLayout() {
           onTime={(t) => dispatch({ type: 'SET_CURRENT_TIME', time: t })}
           onDuration={setDuration}
           onActiveSegment={handleActiveSegment}
+          exportRunning={exportState.status === 'running'}
+          exportPercent={exportState.percent}
+          onExport={doExport}
+          onCancelExport={() => window.api.cancelExport()}
         />
         <div className="overflow-auto border-l border-border">
           <Inspector
