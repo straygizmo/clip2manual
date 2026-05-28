@@ -57,6 +57,7 @@ export async function download(
         if (status < 200 || status >= 300) {
           // 失敗時はレスポンス本文を最大2KBまで集めて理由をエラーに含める
           // （社内プロキシのURLフィルタは 403/451 でブロック理由を返すことが多い）。
+          // Content-Type の charset を尊重する（Shift_JIS/EUC-JP の社内ブロックページに対応）。
           const chunks: Buffer[] = [];
           let collected = 0;
           res.on('data', (c: Buffer) => {
@@ -66,7 +67,13 @@ export async function download(
             }
           });
           res.on('end', () => {
-            const body = Buffer.concat(chunks).subarray(0, 2048).toString('utf8').trim();
+            const ctHeader = res.headers['content-type'];
+            const ct = (Array.isArray(ctHeader) ? ctHeader[0] : ctHeader) ?? '';
+            const charset = (ct.match(/charset=([^;\s]+)/i)?.[1] ?? 'utf-8').toLowerCase();
+            const buf = Buffer.concat(chunks).subarray(0, 2048);
+            let body: string;
+            try { body = new TextDecoder(charset).decode(buf).trim(); }
+            catch { body = buf.toString('utf8').trim(); }
             reject(new Error(`Download failed (${status}) for ${url}${body ? `: ${body}` : ''}`));
           });
           res.on('error', reject);
