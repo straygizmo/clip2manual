@@ -11,11 +11,15 @@ interface Props {
   playingId: string | null;
   onSelect: (id: string) => void;
   onSeek: (time: number) => void;
+  onSplitAtClick?: (segmentId: string, t: number) => void;
 }
 
 const ROW_H = 28;
 
-export function Timeline({ duration, currentTime, segments, selectedId, playingId, onSelect, onSeek }: Props) {
+export function Timeline({
+  duration, currentTime, segments, selectedId, playingId,
+  onSelect, onSeek, onSplitAtClick,
+}: Props) {
   const seekFromEvent = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const ratio = (e.clientX - rect.left) / rect.width;
@@ -31,7 +35,9 @@ export function Timeline({ duration, currentTime, segments, selectedId, playingI
     </div>
   );
 
-  const allClicks = segments.flatMap((s) => s.clicks);
+  const allClicks = segments.flatMap((s) =>
+    s.clicks.map((c) => ({ ...c, segmentId: s.id })),
+  );
 
   return (
     <div className="relative bg-timeline-bg p-2">
@@ -56,10 +62,18 @@ export function Timeline({ duration, currentTime, segments, selectedId, playingI
       }))}
       {row('クリック', allClicks.map((c, i) => (
         <div
-          key={i}
-          className="absolute size-2 rotate-45 bg-click-marker"
-          style={{ top: ROW_H / 2 - 4, left: `calc(${timeToPercent(c.t, duration)}% - 4px)` }}
-        />
+          key={`${c.segmentId}-${i}`}
+          className="absolute size-4 cursor-pointer"
+          style={{ top: ROW_H / 2 - 8, left: `calc(${timeToPercent(c.t, duration)}% - 8px)` }}
+          title="ダブルクリックで分割"
+          onClick={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => { e.stopPropagation(); onSplitAtClick?.(c.segmentId, c.t); }}
+        >
+          <div
+            className="size-2 rotate-45 bg-click-marker"
+            style={{ margin: '4px' }}
+          />
+        </div>
       )))}
       {/* 再生ヘッド */}
       <div
