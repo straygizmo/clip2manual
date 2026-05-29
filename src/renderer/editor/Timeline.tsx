@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type React from 'react';
 import { useTranslation } from 'react-i18next';
 import { type Segment } from '../../shared/types';
@@ -8,6 +8,7 @@ import {
   clampZoom, applyZoomAtPoint,
   shouldAutoScroll,
 } from './timelineGeometry';
+import { resizeBoundary } from '../state/segmentOps';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -20,6 +21,7 @@ interface Props {
   onSelect: (id: string) => void;
   onSeek: (time: number) => void;
   onSplitAtClick?: (segmentId: string, t: number) => void;
+  onResizeCommit?: (primaryId: string, side: 'left' | 'right', newTime: number) => void;
 }
 
 const ROW_H = 28;
@@ -28,7 +30,7 @@ const MAX_PX_PER_SEC = 400;
 
 export function Timeline({
   duration, currentTime, segments, selectedId, playingId, playing,
-  onSelect, onSeek, onSplitAtClick,
+  onSelect, onSeek, onSplitAtClick, onResizeCommit,
 }: Props) {
   const { t } = useTranslation();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -44,6 +46,17 @@ export function Timeline({
   const programmaticScroll = useRef(false);
 
   const [follow, setFollow] = useState(true);
+
+  const [dragPreview, setDragPreview] = useState<
+    { primaryId: string; side: 'left' | 'right'; newTime: number } | null
+  >(null);
+
+  const displaySegments = dragPreview
+    ? resizeBoundary(
+        segments,
+        dragPreview.primaryId, dragPreview.side, dragPreview.newTime, duration,
+      )
+    : segments;
 
   // 追尾実行
   useEffect(() => {
@@ -130,7 +143,7 @@ export function Timeline({
     }
   }
 
-  const allClicks = segments.flatMap((s) =>
+  const allClicks = displaySegments.flatMap((s) =>
     s.clicks.map((c) => ({ ...c, segmentId: s.id })),
   );
 
@@ -202,28 +215,64 @@ export function Timeline({
             {contentRow(null)}
 
             {/* セグメント行 */}
-            {contentRow(segments.map((s) => {
+            {contentRow(displaySegments.map((s) => {
               const b = segmentBox(s.videoStart, s.videoEnd, pxPerSec);
+              const startDrag = (side: 'left' | 'right') => (e: React.MouseEvent) => {
+                e.stopPropagation();
+                const initial = side === 'left' ? s.videoStart : s.videoEnd;
+                const startX = e.clientX;
+                let last = { primaryId: s.id, side, newTime: initial };
+                const onMove = (ev: MouseEvent) => {
+                  const dt = pxToTime(ev.clientX - startX, pxPerSec);
+                  last = { primaryId: s.id, side, newTime: initial + dt };
+                  setDragPreview(last);
+                };
+                const onUp = () => {
+                  window.removeEventListener('mousemove', onMove);
+                  window.removeEventListener('mouseup', onUp);
+                  setDragPreview(null);
+                  onResizeCommit?.(last.primaryId, last.side, last.newTime);
+                };
+                window.addEventListener('mousemove', onMove);
+                window.addEventListener('mouseup', onUp);
+              };
               return (
-                <div
-                  key={s.id}
-                  onClick={() => onSelect(s.id)}
-                  title={s.correctedText}
-                  className={cn(
-                    'absolute box-border cursor-pointer overflow-hidden whitespace-nowrap rounded-sm border border-segment-border px-1 text-[11px] text-foreground',
-                    s.id === playingId
-                      ? 'bg-segment-playing ring-2 ring-amber-300'
-                      : s.id === selectedId
-                        ? 'bg-segment-selected'
-                        : s.ttsAudio
-                          ? 'bg-segment-generated'
-                          : 'bg-segment',
-                    s.enabled === false && 'opacity-35',
-                  )}
-                  style={{ top: 3, height: ROW_H - 6, left: b.left, width: b.width }}
-                >
-                  {s.correctedText}
-                </div>
+                <Fragment key={s.id}>
+                  <div
+                    onClick={() => onSelect(s.id)}
+                    title={s.correctedText}
+                    className={cn(
+                      'absolute box-border cursor-pointer overflow-hidden whitespace-nowrap rounded-sm border border-segment-border px-1 text-[11px] text-foreground',
+                      s.id === playingId
+                        ? 'bg-segment-playing ring-2 ring-amber-300'
+                        : s.id === selectedId
+                          ? 'bg-segment-selected'
+                          : s.ttsAudio
+                            ? 'bg-segment-generated'
+                            : 'bg-segment',
+                      s.enabled === false && 'opacity-35',
+                    )}
+                    style={{ top: 3, height: ROW_H - 6, left: b.left, width: b.width }}
+                  >
+                    {s.correctedText}
+                  </div>
+                  <div
+                    className="absolute cursor-ew-resize"
+                    style={{
+                      top: 0, height: ROW_H, width: 6, left: b.left - 3,
+                      borderLeft: '2px solid rgba(255, 255, 255, 0.55)',
+                    }}
+                    onMouseDown={startDrag('left')}
+                  />
+                  <div
+                    className="absolute cursor-ew-resize"
+                    style={{
+                      top: 0, height: ROW_H, width: 6, left: b.left + b.width - 3,
+                      borderRight: '2px solid rgba(255, 255, 255, 0.55)',
+                    }}
+                    onMouseDown={startDrag('right')}
+                  />
+                </Fragment>
               );
             }))}
 
