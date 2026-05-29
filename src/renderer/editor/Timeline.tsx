@@ -219,6 +219,7 @@ export function Timeline({
               const b = segmentBox(s.videoStart, s.videoEnd, pxPerSec);
               const startDrag = (side: 'left' | 'right') => (e: React.MouseEvent) => {
                 e.stopPropagation();
+                e.preventDefault();
                 const initial = side === 'left' ? s.videoStart : s.videoEnd;
                 const startX = e.clientX;
                 let last = { primaryId: s.id, side, newTime: initial };

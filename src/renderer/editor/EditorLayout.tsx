@@ -156,8 +156,8 @@ export function EditorLayout() {
   const onResizeCommit = useCallback(
     (primaryId: string, side: 'left' | 'right', newTime: number) => {
       if (duration <= 0) return;
-      dispatch({ type: 'RESIZE_BOUNDARY', primaryId, side, newTime, duration });
       const updated = resizeBoundary(segments, primaryId, side, newTime, duration);
+      dispatch({ type: 'SET_SEGMENTS', segments: updated });
       void window.api.updateSegments(updated);
     },
     [dispatch, segments, duration],
