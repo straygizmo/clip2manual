@@ -198,14 +198,14 @@ export function PreviewPlayer({
         </div>
         <audio ref={audioRef} src={audioUrl} />
       </div>
-      <div className="flex shrink-0 flex-wrap items-center gap-3 bg-muted px-3 py-2 text-foreground">
-        <Button size="sm" onClick={togglePlay} disabled={ttsLoading}>{playing ? <Pause className="size-4" /> : <Play className="size-4" />}{playing ? t('preview.pause') : t('preview.play')}</Button>
-        <span className="text-xs text-muted-foreground">{t('preview.audioLabel')}</span>
-        <Button size="sm" variant={mode === 'original' ? 'default' : 'secondary'} onClick={() => void switchMode('original')} disabled={mode === 'original' || ttsLoading}>{t('preview.modeOriginal')}</Button>
-        <Button size="sm" variant={mode === 'tts' ? 'default' : 'secondary'} onClick={() => void switchMode('tts')} disabled={mode === 'tts' || ttsLoading}>{t('preview.modeTts')}</Button>
-        {ttsLoading && <span className="text-xs text-muted-foreground">{t('preview.ttsLoading')}</span>}
-        {missing && <span className="text-xs text-amber-500">{t('preview.missingTtsHint')}</span>}
-        <div className="ml-auto flex items-center gap-2">
+      <div className="flex shrink-0 flex-nowrap items-center gap-3 overflow-x-auto bg-muted px-3 py-2 text-foreground">
+        <Button size="sm" className="shrink-0" onClick={togglePlay} disabled={ttsLoading}>{playing ? <Pause className="size-4" /> : <Play className="size-4" />}{playing ? t('preview.pause') : t('preview.play')}</Button>
+        <span className="shrink-0 text-xs text-muted-foreground">{t('preview.audioLabel')}</span>
+        <Button size="sm" className="shrink-0" variant={mode === 'original' ? 'default' : 'secondary'} onClick={() => void switchMode('original')} disabled={mode === 'original' || ttsLoading}>{t('preview.modeOriginal')}</Button>
+        <Button size="sm" className="shrink-0" variant={mode === 'tts' ? 'default' : 'secondary'} onClick={() => void switchMode('tts')} disabled={mode === 'tts' || ttsLoading}>{t('preview.modeTts')}</Button>
+        {ttsLoading && <span className="shrink-0 text-xs text-muted-foreground">{t('preview.ttsLoading')}</span>}
+        {missing && <span className="shrink-0 text-xs text-amber-500">{t('preview.missingTtsHint')}</span>}
+        <div className="ml-auto flex shrink-0 items-center gap-2">
           {exportRunning && (
             <Button variant="ghost" size="sm" onClick={onCancelExport}>
               <X className="size-4" />{t('common.cancel')}
