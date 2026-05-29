@@ -5,6 +5,7 @@ import { type Segment } from '../../shared/types';
 import {
   segmentBox, timeToPx, pxToTime,
   pickMajorInterval, formatTimeLabel,
+  clampZoom, applyZoomAtPoint,
 } from './timelineGeometry';
 import { cn } from '@/lib/utils';
 
@@ -39,8 +40,48 @@ export function Timeline({
     }
   }, [duration, pxPerSec]);
 
-  // Task 5 で MAX_PX_PER_SEC を使う。未使用警告を抑えるためのダミー参照。
-  void MAX_PX_PER_SEC;
+  const programmaticScroll = useRef(false);
+
+  const fitPxPerSec = () => {
+    const el = scrollRef.current;
+    if (!el || duration <= 0) return 0;
+    return el.clientWidth / duration;
+  };
+
+  const applyZoom = (next: number, mouseOffsetPx: number) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const fit = fitPxPerSec();
+    const clamped = clampZoom(next, fit, MAX_PX_PER_SEC);
+    const r = applyZoomAtPoint({
+      oldPxPerSec: pxPerSec, newPxPerSec: clamped,
+      scrollLeft: el.scrollLeft, mouseOffsetPx,
+    });
+    programmaticScroll.current = true;
+    setPxPerSec(r.pxPerSec);
+    requestAnimationFrame(() => {
+      if (scrollRef.current) scrollRef.current.scrollLeft = r.scrollLeft;
+      programmaticScroll.current = false;
+    });
+  };
+
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    const el = scrollRef.current!;
+    const offset = e.clientX - el.getBoundingClientRect().left;
+    const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+    applyZoom(pxPerSec * factor, offset);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const center = el.clientWidth / 2;
+    if (e.key === '+' || e.key === '=') { e.preventDefault(); applyZoom(pxPerSec * Math.SQRT2, center); }
+    else if (e.key === '-' || e.key === '_') { e.preventDefault(); applyZoom(pxPerSec / Math.SQRT2, center); }
+    else if (e.key === '0') { e.preventDefault(); applyZoom(fitPxPerSec(), center); }
+  };
 
   const contentWidth = duration > 0 && pxPerSec > 0 ? duration * pxPerSec : 0;
 
@@ -78,7 +119,12 @@ export function Timeline({
   );
 
   return (
-    <div className="relative bg-timeline-bg p-2">
+    <div
+      className="relative bg-timeline-bg p-2 outline-none"
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+      onWheel={handleWheel}
+    >
       <div className="grid" style={{ gridTemplateColumns: `${LABEL_W}px 1fr` }}>
         {/* 左: ラベル列 */}
         <div>
