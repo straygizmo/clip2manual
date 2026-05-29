@@ -145,4 +145,20 @@ describe('editorReducer', () => {
     expect(s.selectedSegmentId).toBe('seg-001');
     expect(s.project!.segments[0].correctedText).toBe('x');
   });
+
+  it('RESIZE_BOUNDARY moves the shared boundary on both affected segments', () => {
+    let s = editorReducer(initialEditorState, { type: 'OPEN_PROJECT', projectDir: '/d', project: makeProject() });
+    s = editorReducer(s, { type: 'TRANSCRIPTION_DONE', segments: [
+      { ...seg, videoStart: 0, videoEnd: 2 },
+      { ...seg, id: 'seg-002', videoStart: 2, videoEnd: 5 },
+    ] });
+    s = editorReducer(s, { type: 'RESIZE_BOUNDARY', primaryId: 'seg-001', side: 'right', newTime: 3, duration: 10 });
+    expect(s.project!.segments[0].videoEnd).toBe(3);
+    expect(s.project!.segments[1].videoStart).toBe(3);
+  });
+
+  it('RESIZE_BOUNDARY is a no-op when project is null', () => {
+    const s = editorReducer(initialEditorState, { type: 'RESIZE_BOUNDARY', primaryId: 'x', side: 'right', newTime: 1, duration: 10 });
+    expect(s.project).toBeNull();
+  });
 });

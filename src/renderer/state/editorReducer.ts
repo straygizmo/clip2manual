@@ -1,4 +1,5 @@
 import { type Project, type Segment, type SegmentVoice, type ProjectSettings } from '../../shared/types';
+import { resizeBoundary } from './segmentOps';
 
 export interface TranscriptionState {
   status: 'idle' | 'running' | 'error';
@@ -40,7 +41,8 @@ export type EditorAction =
   | { type: 'TTS_GENERATED'; segments: Segment[] }
   | { type: 'TTS_ERROR'; error: string }
   | { type: 'SET_SEGMENTS'; segments: Segment[]; selectId?: string }
-  | { type: 'SET_SETTINGS'; settings: ProjectSettings };
+  | { type: 'SET_SETTINGS'; settings: ProjectSettings }
+  | { type: 'RESIZE_BOUNDARY'; primaryId: string; side: 'left' | 'right'; newTime: number; duration: number };
 
 export const initialEditorState: EditorState = {
   screen: 'home',
@@ -153,6 +155,18 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       return {
         ...state,
         project: { ...state.project, settings: action.settings },
+      };
+    case 'RESIZE_BOUNDARY':
+      if (!state.project) return state;
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          segments: resizeBoundary(
+            state.project.segments,
+            action.primaryId, action.side, action.newTime, action.duration,
+          ),
+        },
       };
     default:
       return state;
