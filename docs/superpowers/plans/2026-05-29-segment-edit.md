@@ -687,3 +687,21 @@ npm run dev
 5. `PreviewPlayer.tsx` ツールバー fix
 6. 全体検証
 7. 手動 E2E
+
+---
+
+## 実装完了サマリ (2026-05-29)
+
+ブランチ: `feat/segment-edit`（master 未マージ、E2E 後にマージ予定）。
+
+| Task | コミット | 摘要 |
+|---|---|---|
+| 1 | `55325c0` | `resizeBoundary` + `MIN_SEGMENT_DURATION` 純関数（11 テスト） |
+| 2 | `73f6756` | `RESIZE_BOUNDARY` reducer action（2 テスト） |
+| 3 | `fef8338` | Timeline に Fragment + dragPreview + displaySegments + 6px 左右ハンドル |
+| 4 | `40445b4` | EditorLayout で `onResizeCommit` useCallback + Timeline へ配線 |
+| 5 | `9670b0b` | PreviewPlayer toolbar: `flex-wrap` → `flex-nowrap overflow-x-auto`、各子に `shrink-0` |
+
+**統計**: 単体テスト **246 件パス**（既存 233 + 新規 13: segmentOps 11 + editorReducer 2）。typecheck/build クリーン。
+
+**E2E は次タスク**で実機 Windows で確認する。
