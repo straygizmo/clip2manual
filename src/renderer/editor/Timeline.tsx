@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type React from 'react';
 import { useTranslation } from 'react-i18next';
 import { type Segment } from '../../shared/types';
@@ -6,6 +6,7 @@ import {
   segmentBox, timeToPx, pxToTime,
   pickMajorInterval, formatTimeLabel,
   clampZoom, applyZoomAtPoint,
+  shouldAutoScroll,
 } from './timelineGeometry';
 import { cn } from '@/lib/utils';
 
@@ -26,7 +27,7 @@ const LABEL_W = 90;
 const MAX_PX_PER_SEC = 400;
 
 export function Timeline({
-  duration, currentTime, segments, selectedId, playingId, playing: _playing,
+  duration, currentTime, segments, selectedId, playingId, playing,
   onSelect, onSeek, onSplitAtClick,
 }: Props) {
   const { t } = useTranslation();
@@ -41,6 +42,37 @@ export function Timeline({
   }, [duration, pxPerSec]);
 
   const programmaticScroll = useRef(false);
+
+  const [follow, setFollow] = useState(true);
+
+  // 追尾実行
+  useEffect(() => {
+    if (!follow || !scrollRef.current || pxPerSec <= 0) return;
+    const el = scrollRef.current;
+    const playheadPx = timeToPx(currentTime, pxPerSec);
+    const target = shouldAutoScroll({
+      playheadPx, viewLeft: el.scrollLeft,
+      viewWidth: el.clientWidth, margin: 40,
+    });
+    if (target !== null) {
+      programmaticScroll.current = true;
+      el.scrollLeft = target;
+      requestAnimationFrame(() => { programmaticScroll.current = false; });
+    }
+  }, [currentTime, pxPerSec, follow]);
+
+  // 再生立ち上がりエッジで follow=true 再開
+  const prevPlaying = useRef(playing);
+  useEffect(() => {
+    if (playing && !prevPlaying.current) setFollow(true);
+    prevPlaying.current = playing;
+  }, [playing]);
+
+  // 手動スクロール検出
+  const handleScroll = () => {
+    if (programmaticScroll.current) return;
+    setFollow(false);
+  };
 
   const fitPxPerSec = () => {
     const el = scrollRef.current;
@@ -135,7 +167,11 @@ export function Timeline({
         </div>
 
         {/* 右: スクロール領域。content 幅 = duration * pxPerSec */}
-        <div ref={scrollRef} className="overflow-x-auto overflow-y-hidden">
+        <div
+          ref={scrollRef}
+          className="overflow-x-auto overflow-y-hidden"
+          onScroll={handleScroll}
+        >
           <div className="relative" style={{ width: contentWidth }} onClick={onContentClick}>
             {/* 時刻行 */}
             {contentRow(ticks.map((tk, i) => (

@@ -30,6 +30,7 @@ export function EditorLayout() {
   );
   const [playingId, setPlayingId] = useState<string | null>(null);
   const handleActiveSegment = useCallback((id: string | null) => setPlayingId(id), []);
+  const [playing, setPlaying] = useState(false);
   const [slotHint, setSlotHint] = useState<{ slotId: string; offsetInSlot: number; visibleDuration: number } | null>(null);
   const onSlotProgress = useCallback((h: { slotId: string; offsetInSlot: number; visibleDuration: number } | null) => setSlotHint(h), []);
   const [requestedMode, setRequestedMode] = useState<{ mode: 'original' | 'tts' } | null>(null);
@@ -279,6 +280,7 @@ export function EditorLayout() {
           onTime={(t) => dispatch({ type: 'SET_CURRENT_TIME', time: t })}
           onDuration={setDuration}
           onActiveSegment={handleActiveSegment}
+          onPlayingChange={setPlaying}
           exportRunning={exportState.status === 'running'}
           exportPercent={exportState.percent}
           onExport={doExport}
@@ -308,7 +310,7 @@ export function EditorLayout() {
         segments={segments}
         selectedId={state.selectedSegmentId}
         playingId={playingId}
-        playing={false}
+        playing={playing}
         onSelect={(id) => dispatch({ type: 'SELECT_SEGMENT', id })}
         onSeek={seek}
         onSplitAtClick={onSplitAtClick}
