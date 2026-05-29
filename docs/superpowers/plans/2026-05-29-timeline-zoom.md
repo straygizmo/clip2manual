@@ -892,3 +892,22 @@ npm run dev
 6. 追尾 + EditorLayout `playing` state 配線
 7. 全体検証
 8. 手動 E2E
+
+---
+
+## 実装完了サマリ (2026-05-29)
+
+ブランチ: `feat/timeline-zoom`（master 未マージ、E2E 後にマージ予定）。
+
+| Task | コミット | 摘要 |
+|---|---|---|
+| 1 | `7fd352b` | `timelineGeometry.ts` 純関数 7 本（timeToPx/pxToTime/segmentBox/clampZoom/applyZoomAtPoint/pickMajorInterval/formatTimeLabel/shouldAutoScroll）+ 19 テスト |
+| 2 | `b40b40f` | `timeline.time` i18n（ja=「時刻」、en="Time"） |
+| 3 | `f0a9057` | `PreviewPlayer.onPlayingChange` ref-forwarding パターン（8 ヶ所の setPlaying を notifyPlaying に置換） |
+| 4 | `e9538b3` | Timeline.tsx を CSS スクロール + tick row 構造に書き換え。`pxPerSec` Fit 固定 |
+| 5 | `b02b0f2` | Ctrl+wheel（マウス位置中心）/ +/- (sqrt2、ビュー中央) / 0 (Fit) ズーム + tabIndex で focus |
+| 6 | `5202b50` | shouldAutoScroll ベースのページ送り追尾、手動スクロールで follow=false、playing 立ち上がりで follow=true。EditorLayout で `playing` state を保持し PreviewPlayer↔Timeline に配線 |
+
+**統計**: 単体テスト 233 件パス（既存 209 + 新規 24: timeToPx/pxToTime 3 + segmentBox 3 + clampZoom 1 + applyZoomAtPoint 3 + pickMajorInterval 4 + formatTimeLabel 2 + shouldAutoScroll 3 — テスト個別数で 19）。typecheck/build クリーン。
+
+**E2E は次タスク**で実機 Windows で確認する。
