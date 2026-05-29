@@ -32,6 +32,7 @@ describe('runExport', () => {
       outPath: path.join(projectDir, 'out.mp4'),
       tmpDir,
       credit: 'VOICEVOX',
+      showSubtitles: false,
       runFfmpeg: async (args) => { ffmpegCalls.push(args); },
       runProbe: async (args) => {
         probeCalls.push(args);
@@ -57,6 +58,7 @@ describe('runExport', () => {
   it('throws when there are no segments', async () => {
     await expect(runExport({
       segments: [], projectDir, outPath: path.join(projectDir, 'o.mp4'), tmpDir, credit: 'x',
+      showSubtitles: false,
       runFfmpeg: async () => {}, runProbe: async () => '30/1',
     })).rejects.toThrow();
   });
@@ -74,6 +76,7 @@ describe('runExport', () => {
       outPath: path.join(projectDir, 'out.mp4'),
       tmpDir,
       credit: 'VOICEVOX',
+      showSubtitles: false,
       runFfmpeg: async (args) => { ffmpegCalls.push(args); },
       runProbe: async (args) => {
         const s = args.join(' ');
@@ -93,5 +96,57 @@ describe('runExport', () => {
     expect(videoCall).toContain('-filter_complex');
     expect(videoCall).toContain('-map');
     expect(videoCall.join(' ')).toContain('overlay=shortest=1');
+  });
+
+  it('calls generateSubtitleFrame for each segment with text when showSubtitles=true', async () => {
+    const subCalls: Array<{ slotId: string; text: string }> = [];
+    await runExport({
+      segments: [
+        { ...seg('seg-001', 1, 3, 'tts/seg-001.wav'), correctedText: 'hello' },
+        { ...seg('seg-002', 3, 6, null), correctedText: '' },
+      ],
+      projectDir,
+      outPath: path.join(projectDir, 'out.mp4'),
+      tmpDir,
+      credit: 'VOICEVOX',
+      showSubtitles: true,
+      runFfmpeg: async () => {},
+      runProbe: async (args) => {
+        const s = args.join(' ');
+        if (s.includes('r_frame_rate')) return '30/1';
+        if (s.includes('width,height')) return '1920,1080';
+        return '2.0';
+      },
+      generateSubtitleFrame: async (input) => {
+        subCalls.push({ slotId: input.slot.segmentId, text: input.text });
+        if (input.text.trim() === '') return null;
+        return { pngPath: '/tmp/sub.png', durationSec: input.slot.clipDuration || 1 };
+      },
+    });
+
+    expect(subCalls.length).toBe(2);
+    expect(subCalls[0]).toEqual({ slotId: 'seg-001', text: 'hello' });
+    expect(subCalls[1]).toEqual({ slotId: 'seg-002', text: '' });
+  });
+
+  it('skips generateSubtitleFrame entirely when showSubtitles=false', async () => {
+    const subCalls: number[] = [];
+    await runExport({
+      segments: [{ ...seg('seg-001', 1, 3, 'tts/seg-001.wav'), correctedText: 'hello' }],
+      projectDir,
+      outPath: path.join(projectDir, 'out.mp4'),
+      tmpDir,
+      credit: 'VOICEVOX',
+      showSubtitles: false,
+      runFfmpeg: async () => {},
+      runProbe: async (args) => {
+        const s = args.join(' ');
+        if (s.includes('r_frame_rate')) return '30/1';
+        if (s.includes('width,height')) return '1920,1080';
+        return '2.0';
+      },
+      generateSubtitleFrame: async () => { subCalls.push(1); return null; },
+    });
+    expect(subCalls.length).toBe(0);
   });
 });

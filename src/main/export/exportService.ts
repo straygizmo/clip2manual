@@ -8,6 +8,8 @@ import {
   segmentVideoArgs, segmentAudioArgs, concatArgs, muxArgs,
 } from './ffargs';
 import { generateRippleFramesForSlot, type GenerateRippleFramesInput } from './rippleFrames';
+import { generateSubtitleFrameForSlot, type GenerateSubtitleFrameInput, type SubtitleFrameOutput } from './subtitleFrames';
+import { loadSubtitleFontBase64 } from './fontPaths';
 import { tMain } from '../i18n';
 
 export interface ExportOptions {
@@ -17,12 +19,16 @@ export interface ExportOptions {
   outPath: string;    // 最終 MP4
   tmpDir: string;     // 中間ファイル
   credit: string;     // メタデータ comment
+  showSubtitles: boolean;
   runFfmpeg: (args: string[]) => Promise<void>;
   runProbe: (args: string[]) => Promise<string>;
   /** デフォルトは本物の generateRippleFramesForSlot。テストでモック可。 */
   generateRippleFrames?: (
     input: GenerateRippleFramesInput,
   ) => Promise<{ pattern: string; fps: number } | null>;
+  generateSubtitleFrame?: (
+    input: GenerateSubtitleFrameInput,
+  ) => Promise<SubtitleFrameOutput | null>;
   onProgress?: (percent: number) => void;
   signal?: AbortSignal;
 }
@@ -54,6 +60,11 @@ export async function runExport(opts: ExportOptions): Promise<void> {
   const tick = () => { done += 1; opts.onProgress?.(Math.round((done / total) * 100)); };
 
   const generate = opts.generateRippleFrames ?? generateRippleFramesForSlot;
+  const generateSubtitle = opts.generateSubtitleFrame ?? generateSubtitleFrameForSlot;
+  // fontBase64: load once iff we need the real subtitle renderer (skip when caller injects a mock)
+  const fontBase64 = (opts.showSubtitles && !opts.generateSubtitleFrame)
+    ? await loadSubtitleFontBase64()
+    : '';
 
   const videoParts: string[] = [];
   const audioParts: string[] = [];
@@ -71,10 +82,25 @@ export async function runExport(opts: ExportOptions): Promise<void> {
       signal: opts.signal,
     });
 
+    let subtitle: { pngPath: string; durationSec: number } | undefined;
+    if (opts.showSubtitles && segment) {
+      const text = (segment.correctedText.trim() || segment.originalText.trim());
+      const out = await generateSubtitle({
+        slot,
+        text,
+        videoW,
+        videoH,
+        fontBase64,
+        outDir: path.join(opts.tmpDir, `${slot.segmentId}_subtitle`),
+        signal: opts.signal,
+      });
+      if (out !== null) subtitle = out;
+    }
+
     const vOut = path.join(opts.tmpDir, `${slot.segmentId}.mp4`);
     const aOut = path.join(opts.tmpDir, `${slot.segmentId}.wav`);
     const clipPath = segment && segment.ttsAudio ? path.join(opts.projectDir, segment.ttsAudio) : null;
-    await opts.runFfmpeg(segmentVideoArgs({ rawPath: raw, slot, outPath: vOut, fps, ripple: ripple ?? undefined }));
+    await opts.runFfmpeg(segmentVideoArgs({ rawPath: raw, slot, outPath: vOut, fps, ripple: ripple ?? undefined, subtitle }));
     await opts.runFfmpeg(segmentAudioArgs({ clipPath, slotDuration: slot.slotDuration, outPath: aOut }));
     videoParts.push(vOut);
     audioParts.push(aOut);

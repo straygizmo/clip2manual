@@ -36,6 +36,7 @@ export function registerExportIpc(): void {
         outPath,
         tmpDir,
         credit: CREDIT,
+        showSubtitles: project.settings.showSubtitles,
         runFfmpeg: (args) => runFfmpeg(ffmpegPath, args, currentAbort!.signal),
         runProbe: (args) => runProbe(ffprobePath, args),
         onProgress: (p) => event.sender.send('export:progress', p),
