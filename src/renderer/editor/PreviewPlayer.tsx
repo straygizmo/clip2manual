@@ -26,6 +26,8 @@ interface Props {
   subtitleText: string | null;
   /** TTS モード進捗のフォワード（EditorLayout が pickSubtitle 引数に使う）。 */
   onSlotProgress: (hint: { slotId: string; offsetInSlot: number; visibleDuration: number } | null) => void;
+  /** 再生状態が変化したら通知（Timeline の追尾再開エッジ判定用）。 */
+  onPlayingChange?: (playing: boolean) => void;
 }
 
 /**
@@ -35,6 +37,7 @@ interface Props {
 export function PreviewPlayer({
   videoRef, audioRef, videoUrl, audioUrl, segments, projectDir, onTime, onDuration, onActiveSegment,
   exportRunning, exportPercent, onExport, onCancelExport, requestedMode, subtitleText, onSlotProgress,
+  onPlayingChange,
 }: Props) {
   const { t } = useTranslation();
   const [playing, setPlaying] = useState(false);
@@ -50,6 +53,13 @@ export function PreviewPlayer({
   onTimeRef.current = onTime;
   const onSlotProgressRef = useRef(onSlotProgress);
   onSlotProgressRef.current = onSlotProgress;
+  const onPlayingChangeRef = useRef(onPlayingChange);
+  onPlayingChangeRef.current = onPlayingChange;
+
+  const notifyPlaying = (p: boolean) => {
+    setPlaying(p);
+    onPlayingChangeRef.current?.(p);
+  };
 
   const controllerRef = useRef<TtsPreviewController | null>(null);
   if (!controllerRef.current) {
@@ -57,7 +67,7 @@ export function PreviewPlayer({
       onActiveSegment: (id) => onActiveRef.current(id),
       onTime: (t) => onTimeRef.current(t),
       onSlotProgress: (h) => onSlotProgressRef.current(h),
-      onEnded: () => setPlaying(false),
+      onEnded: () => notifyPlaying(false),
     });
   }
   useEffect(() => () => { controllerRef.current?.dispose(); controllerRef.current = null; }, []);
@@ -98,11 +108,11 @@ export function PreviewPlayer({
     if (v.paused) {
       if (a && Number.isFinite(v.currentTime)) { a.currentTime = v.currentTime; void a.play(); }
       void v.play();
-      setPlaying(true);
+      notifyPlaying(true);
     } else {
       v.pause();
       a?.pause();
-      setPlaying(false);
+      notifyPlaying(false);
     }
   };
 
@@ -112,10 +122,10 @@ export function PreviewPlayer({
     if (!c || !v) return;
     if (playing) {
       c.pause();
-      setPlaying(false);
+      notifyPlaying(false);
     } else {
       const started = await c.play(v); // play 中に中断されたら false
-      setPlaying(started);
+      notifyPlaying(started);
     }
   };
 
@@ -127,7 +137,7 @@ export function PreviewPlayer({
     videoRef.current?.pause();
     audioRef.current?.pause();
     controllerRef.current?.stop();
-    setPlaying(false);
+    notifyPlaying(false);
     if (next === 'tts') {
       setTtsLoading(true);
       try { await controllerRef.current?.load(segments, projectDir); } finally { setTtsLoading(false); }
@@ -160,8 +170,8 @@ export function PreviewPlayer({
               onTime(e.currentTarget.currentTime);
               syncAudioTime();
             }}
-            onPlay={() => { if (inTts()) return; if (audioRef.current) void audioRef.current.play(); setPlaying(true); }}
-            onPause={() => { if (inTts()) return; audioRef.current?.pause(); setPlaying(false); }}
+            onPlay={() => { if (inTts()) return; if (audioRef.current) void audioRef.current.play(); notifyPlaying(true); }}
+            onPause={() => { if (inTts()) return; audioRef.current?.pause(); notifyPlaying(false); }}
             onSeeked={() => { if (inTts()) return; syncAudioTime(); }}
           />
           <RippleCanvas videoRef={videoRef} clicks={clicks} />
