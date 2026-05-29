@@ -1615,3 +1615,28 @@ npm run dev
 12. exportService.ts + ipc — 配線
 13. ビルド + 全テスト
 14. 手動 E2E
+
+---
+
+## 実装完了サマリ (2026-05-29)
+
+ブランチ: `feat/subtitles`（master 未マージ、手動 E2E 後にマージ予定）。
+
+| Task | コミット | 摘要 |
+|---|---|---|
+| 1 | `47e3c5b` | `ProjectSettings.showSubtitles` 追加 + back-compat 正規化 |
+| 2 | `fda233c` → `113dcb5` | `pickSubtitle` 純関数（review fix: `mode` フィールド削除＋冗長 tsconfig エントリ削除＋エッジテスト追加） |
+| 3 | `3d11182` | `TtsPreviewController.onSlotProgress` rAF hint コールバック |
+| 4 | `423ce54` | `PreviewPlayer` 字幕 overlay + props |
+| 5 | `b387a87` | `EditorLayout` 字幕トグル + reducer `SET_SETTINGS` + ja/en i18n |
+| 6 | `1279f21` → `19efd83` | `wrapJapanese`（review fix: `…` の列幅を 2 として正しく計算） |
+| 7 | `cbbb6f2` → `38a4541` | Noto Sans JP 同梱（一度 CJK 16MB を入れたが NotoSansJP 4.3MB に差し替え）+ OFL LICENSE + electron-builder extraResources |
+| 8 | `22ec75b` | `fontPaths.ts`（dev/packaged 解決 + base64 キャッシュ） |
+| 9 | `1a55af4` | `subtitleSvg`（@font-face base64 埋込み、3行折返し、縁取り） |
+| 10 | `1cb8642` | `subtitleFrames.ts`（sharp で per-slot 1 PNG） |
+| 11 | `50ddbb2` | `segmentVideoArgs` に `subtitle` 引数追加（ripple と共存可能なフィルタチェーン構築ロジック） |
+| 12 | `2fffb76` | `exportService.runExport` に subtitle 生成統合 + `ExportOptions.showSubtitles` + ipc 配線 |
+
+**統計**: 単体テスト 209件パス（fresh 39件追加: subtitleSelect 13 + subtitleWrap 9 + subtitleSvg 7 + ffargs 3 + exportService 2 + validateProject 5）。typecheck/build クリーン。
+
+**E2E は次タスク**で実機 Windows で確認する。
