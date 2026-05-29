@@ -125,3 +125,36 @@ describe('concatArgs / muxArgs', () => {
     expect(args).toContain('comment=VOICEVOX');
   });
 });
+
+describe('segmentVideoArgs with subtitle', () => {
+  it('adds subtitle overlay with -loop 1 input and enable=lt(t,dur)', () => {
+    const args = segmentVideoArgs({
+      rawPath: 'raw.webm', slot, outPath: 'v.mp4', fps: 30,
+      subtitle: { pngPath: 'sub.png', durationSec: 4.5 },
+    });
+    expect(args).toContain('-loop');
+    expect(args).toContain('sub.png');
+    const fc = args[args.indexOf('-filter_complex') + 1];
+    expect(fc).toContain('overlay=0:0:enable=');
+    expect(fc).toContain("lt(t,4.500)");
+    expect(args).toContain('[vout]');
+  });
+
+  it('combines ripple and subtitle in a single filter chain', () => {
+    const args = segmentVideoArgs({
+      rawPath: 'raw.webm', slot, outPath: 'v.mp4', fps: 30,
+      ripple: { pattern: 'rip/%05d.png', fps: 30 },
+      subtitle: { pngPath: 'sub.png', durationSec: 2 },
+    });
+    const fc = args[args.indexOf('-filter_complex') + 1];
+    expect(fc).toContain('[vbase][1:v] overlay=shortest=1');
+    expect(fc).toMatch(/\[v[a-z0-9]+\]\[2:v\] overlay=0:0:enable='lt\(t,2\.000\)'/);
+    expect(args).toContain('[vout]');
+  });
+
+  it('uses -vf path (no filter_complex) when neither ripple nor subtitle is provided', () => {
+    const args = segmentVideoArgs({ rawPath: 'raw.webm', slot, outPath: 'v.mp4', fps: 30 });
+    expect(args).toContain('-vf');
+    expect(args).not.toContain('-filter_complex');
+  });
+});
