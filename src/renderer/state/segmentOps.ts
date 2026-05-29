@@ -46,3 +46,40 @@ export function splitAt(segments: Segment[], id: string, atTime: number, newId: 
   };
   return [...segments.slice(0, i), first, second, ...segments.slice(i + 1)];
 }
+
+export const MIN_SEGMENT_DURATION = 0.05;
+
+/**
+ * セグメント境界をドラッグでリサイズ。連動仕様:
+ * - 内側の端（隣あり）: 共有境界として隣も一緒に動く
+ * - 外側の端（最初の左 / 最後の右）: 単独。[0, duration] で clamp
+ * 各セグメント長は最低 MIN_SEGMENT_DURATION を保つ。
+ * ttsAudio は保持。clicks も配列のまま（再配分しない）。
+ */
+export function resizeBoundary(
+  segments: Segment[],
+  primaryId: string,
+  side: 'left' | 'right',
+  newTime: number,
+  duration: number,
+): Segment[] {
+  const i = segments.findIndex((s) => s.id === primaryId);
+  if (i < 0) return segments;
+  const out = segments.slice();
+  if (side === 'left') {
+    const lower = i > 0 ? segments[i - 1].videoStart + MIN_SEGMENT_DURATION : 0;
+    const upper = segments[i].videoEnd - MIN_SEGMENT_DURATION;
+    const t = Math.max(lower, Math.min(upper, newTime));
+    out[i] = { ...segments[i], videoStart: t };
+    if (i > 0) out[i - 1] = { ...segments[i - 1], videoEnd: t };
+  } else {
+    const lower = segments[i].videoStart + MIN_SEGMENT_DURATION;
+    const upper = i < segments.length - 1
+      ? segments[i + 1].videoEnd - MIN_SEGMENT_DURATION
+      : duration;
+    const t = Math.max(lower, Math.min(upper, newTime));
+    out[i] = { ...segments[i], videoEnd: t };
+    if (i < segments.length - 1) out[i + 1] = { ...segments[i + 1], videoStart: t };
+  }
+  return out;
+}
