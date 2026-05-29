@@ -79,7 +79,8 @@
     "video": "Video",
     "segment": "Segment",
     "click": "Click",
-    "splitOnDoubleClick": "Double-click to split"
+    "splitOnDoubleClick": "Double-click to split",
+    "time": "Time"
   },
   "preview": {
     "play": "Play",

@@ -79,7 +79,8 @@
     "video": "映像",
     "segment": "セグメント",
     "click": "クリック",
-    "splitOnDoubleClick": "ダブルクリックで分割"
+    "splitOnDoubleClick": "ダブルクリックで分割",
+    "time": "時刻"
   },
   "preview": {
     "play": "再生",
