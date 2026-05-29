@@ -1,4 +1,4 @@
-import { wrapJapanese } from './subtitleWrap';
+import { wrapJapanese, textCols } from './subtitleWrap';
 
 export interface SubtitleSvgInput {
   text: string;
@@ -35,8 +35,8 @@ export function subtitleSvg(input: SubtitleSvgInput): string | null {
   const paddingX = Math.round(fontSize * 0.6);
   const rectH = totalTextH + paddingY * 2;
 
-  // 中央寄せの長さ近似（最も幅広い行のグラフェム個数 × colCharWidth ≈ 表示幅）
-  const widest = lines.reduce((m, l) => Math.max(m, [...l].length * colCharWidth), 0);
+  // 行ごとの実 col 幅を colCharWidth に乗算（全角は colCharWidth*2 で換算される）
+  const widest = lines.reduce((m, l) => Math.max(m, textCols(l) * colCharWidth), 0);
   const rectW = Math.min(videoW * 0.9, widest + paddingX * 2);
 
   const rectX = (videoW - rectW) / 2;

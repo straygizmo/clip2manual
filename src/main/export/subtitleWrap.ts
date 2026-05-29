@@ -1,3 +1,19 @@
+const SEGMENTER = new Intl.Segmenter('ja', { granularity: 'grapheme' });
+
+/** 1 col = half-width 文字幅。ASCII 印字可能範囲は 1、それ以外（全角・絵文字）は 2。 */
+function colWidth(g: string): number {
+  const cp = g.codePointAt(0) ?? 0;
+  if (cp < 0x7f && g.length === 1) return 1;
+  return 2;
+}
+
+/** 1 行（複数グラフェム含む）の合計 col 幅。 */
+export function textCols(line: string): number {
+  let n = 0;
+  for (const { segment } of SEGMENTER.segment(line)) n += colWidth(segment);
+  return n;
+}
+
 /**
  * テキストを行配列に分割する。
  * 全角・絵文字は 2 cols、それ以外は 1 col とし、maxCols を超えないように 1 グラフェムずつ詰める。
@@ -6,15 +22,7 @@
 export function wrapJapanese(text: string, maxCols: number, maxLines: number): string[] {
   const trimmed = text.trim();
   if (trimmed === '') return [];
-  const segmenter = new Intl.Segmenter('ja', { granularity: 'grapheme' });
-  const graphemes = Array.from(segmenter.segment(trimmed), (s) => s.segment);
-
-  const colWidth = (g: string): number => {
-    // ASCII 印字可能範囲は 1、それ以外は全角扱いで 2（絵文字含む）
-    const cp = g.codePointAt(0) ?? 0;
-    if (cp < 0x7f && g.length === 1) return 1;
-    return 2;
-  };
+  const graphemes = Array.from(SEGMENTER.segment(trimmed), (s) => s.segment);
 
   const lines: string[] = [];
   let cur = '';
@@ -35,8 +43,7 @@ export function wrapJapanese(text: string, maxCols: number, maxLines: number): s
   const ellipsisCols = colWidth(ellipsis);
   if (lines.length <= maxLines) return lines;
   const truncated = lines.slice(0, maxLines);
-  // 最後の行に「…」を入れる。入らなければ末尾グラフェムを順に削って入るまで詰める。
-  const lastGraphemes = Array.from(segmenter.segment(truncated[maxLines - 1]), (s) => s.segment);
+  const lastGraphemes = Array.from(SEGMENTER.segment(truncated[maxLines - 1]), (s) => s.segment);
   let cols = 0;
   for (const g of lastGraphemes) cols += colWidth(g);
   while (cols + ellipsisCols > maxCols && lastGraphemes.length > 0) {

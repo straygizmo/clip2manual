@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { wrapJapanese } from '../src/main/export/subtitleWrap';
+import { wrapJapanese, textCols } from '../src/main/export/subtitleWrap';
 
 describe('wrapJapanese', () => {
   it('returns empty array for empty string', () => {
@@ -58,5 +58,27 @@ describe('wrapJapanese', () => {
     const out = wrapJapanese('aaaaabbbbb', 5, 1);
     expect(out).toHaveLength(1);
     expect(out[0]).toBe('aaa…');
+  });
+});
+
+describe('textCols', () => {
+  it('returns 0 for empty string', () => {
+    expect(textCols('')).toBe(0);
+  });
+
+  it('counts ASCII as 1 col each', () => {
+    expect(textCols('hello')).toBe(5);
+  });
+
+  it('counts fullwidth as 2 cols each', () => {
+    expect(textCols('あいう')).toBe(6);
+  });
+
+  it('handles mixed text', () => {
+    expect(textCols('ab漢字cd')).toBe(8);  // 1+1+2+2+1+1
+  });
+
+  it('counts emoji graphemes as 2 cols', () => {
+    expect(textCols('a😀b')).toBe(4);  // 1+2+1
   });
 });
