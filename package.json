@@ -40,5 +40,10 @@
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",
     "uiohook-napi": "^1.5.4"
+  },
+  "build": {
+    "extraResources": [
+      { "from": "vendor/fonts", "to": "fonts" }
+    ]
   }
 }

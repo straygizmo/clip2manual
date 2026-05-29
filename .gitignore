@@ -8,7 +8,9 @@ build/
 release/
 
 # Vendored binaries/models (provisioned via scripts/setup-whisper.mjs)
-vendor/
+# vendor/fonts/ is tracked (bundled font assets for subtitle burn-in)
+vendor/*
+!vendor/fonts
 
 # Brainstorming visual companion (local-only)
 .superpowers/
