@@ -167,6 +167,10 @@ export function PreviewPlayer({
             onLoadedMetadata={(e) => resolveDuration(e.currentTarget)}
             onTimeUpdate={(e) => {
               if (inTts() || resolvingDuration.current) return;
+              // 一時停止中は state.currentTime を真実源にする：MediaRecorder 製 WebM は
+              // 任意 seek が暗黙的に失敗することがあり、その場合 onTimeUpdate が「動画の実位置（=0）」
+              // を返してユーザーのクリック位置を 0 に上書きしてしまう。
+              if (e.currentTarget.paused) return;
               onTime(e.currentTarget.currentTime);
               syncAudioTime();
             }}
