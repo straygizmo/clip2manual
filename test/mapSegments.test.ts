@@ -103,4 +103,38 @@ describe('groupTokensIntoPhrases', () => {
     expect(groupTokensIntoPhrases([])).toEqual([]);
     expect(groupTokensIntoPhrases([{ offsets: { from: 0, to: 100 }, text: '、' }])).toEqual([]);
   });
+
+  it('splits on a silence gap >= PHRASE_GAP_MS when no punctuation is present', () => {
+    // ギャップが 700ms 以上なら句境界（句読点なしでも分割される）
+    const out = groupTokensIntoPhrases([
+      { offsets: { from: 0, to: 500 }, text: 'はい' },
+      { offsets: { from: 500, to: 800 }, text: 'どうも' },
+      // 800 → 1700 のギャップ = 900ms（>=700ms）→ ここで分割
+      { offsets: { from: 1700, to: 2000 }, text: 'では' },
+      { offsets: { from: 2000, to: 2500 }, text: '始めます' },
+    ]);
+    expect(out.map((p) => p.text)).toEqual(['はいどうも', 'では始めます']);
+    expect(out[0].offsets).toEqual({ from: 0, to: 800 });
+    expect(out[1].offsets).toEqual({ from: 1700, to: 2500 });
+  });
+
+  it('does not split on a gap shorter than PHRASE_GAP_MS', () => {
+    // ギャップ 200ms（<700ms）は連続扱い
+    const out = groupTokensIntoPhrases([
+      { offsets: { from: 0, to: 500 }, text: 'あい' },
+      { offsets: { from: 700, to: 1000 }, text: 'うえ' },
+    ]);
+    expect(out.map((p) => p.text)).toEqual(['あいうえ']);
+  });
+
+  it('combines gap and punctuation splits without double-flushing', () => {
+    const out = groupTokensIntoPhrases([
+      { offsets: { from: 0, to: 500 }, text: 'あい' },
+      // 句読点で区切り
+      { offsets: { from: 500, to: 600 }, text: '。' },
+      // ギャップでも区切れる位置だが既に flush 済 → 1 つの新しい句が始まる
+      { offsets: { from: 1500, to: 1800 }, text: 'うえ' },
+    ]);
+    expect(out.map((p) => p.text)).toEqual(['あい', 'うえ']);
+  });
 });

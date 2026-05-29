@@ -12,10 +12,15 @@ export interface WhisperJson {
 /** 句・文の区切りとして扱う文字（日本語・ASCII）。 */
 const PHRASE_DELIMITERS = /^[、。，．！？!?,.…]+$/;
 
+/** トークン間の無音ギャップ（ミリ秒）。これ以上空くと句境界として扱う。
+ *  whisper のモデル・言語によっては句読点が出力されないケースがあるため、
+ *  自然な発話間ポーズで分割する fallback。 */
+export const PHRASE_GAP_MS = 700;
+
 /**
- * whisper --max-len 1 のトークン列を、句読点で区切った「句」単位のセグメントに束ねる。
- * 区切りトークン自体はテキストに含めず、各句は最初の内容トークンの from から
- * 最後の内容トークンの to までを範囲とする。
+ * whisper --max-len 1 のトークン列を、句読点 or 無音ギャップで区切った
+ * 「句」単位のセグメントに束ねる。区切りトークン自体はテキストに含めず、
+ * 各句は最初の内容トークンの from から最後の内容トークンの to までを範囲とする。
  */
 export function groupTokensIntoPhrases(tokens: WhisperSegment[]): WhisperSegment[] {
   const phrases: WhisperSegment[] = [];
@@ -31,6 +36,10 @@ export function groupTokensIntoPhrases(tokens: WhisperSegment[]): WhisperSegment
   for (const tok of tokens) {
     const t = tok.text.trim();
     if (t === '') continue; // 空トークン（先頭の無音など）は無視
+    // 直前の内容トークンから PHRASE_GAP_MS 以上空いていたら、ここを句境界として一度 flush する
+    if (text !== '' && tok.offsets.from - to >= PHRASE_GAP_MS) {
+      flush();
+    }
     if (PHRASE_DELIMITERS.test(t)) {
       flush();
       continue;
