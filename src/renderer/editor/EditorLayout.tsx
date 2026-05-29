@@ -7,7 +7,7 @@ import { Inspector } from './Inspector';
 import { decodeToWav } from '../audio/decodeToWav';
 import { projectAssetUrl } from './assetUrl';
 import { type SpeakerOption } from '../../shared/types';
-import { splitAt } from '../state/segmentOps';
+import { splitAt, resizeBoundary } from '../state/segmentOps';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
@@ -152,6 +152,16 @@ export function EditorLayout() {
       toast.error(t('editor.exportFailed'), { description: String(err) });
     }
   }
+
+  const onResizeCommit = useCallback(
+    (primaryId: string, side: 'left' | 'right', newTime: number) => {
+      if (duration <= 0) return;
+      dispatch({ type: 'RESIZE_BOUNDARY', primaryId, side, newTime, duration });
+      const updated = resizeBoundary(segments, primaryId, side, newTime, duration);
+      void window.api.updateSegments(updated);
+    },
+    [dispatch, segments, duration],
+  );
 
   function setDefaultVoice(voice: { speaker: number; speed: number }) {
     dispatch({ type: 'SET_DEFAULT_VOICE', voice });
@@ -314,6 +324,7 @@ export function EditorLayout() {
         onSelect={(id) => dispatch({ type: 'SELECT_SEGMENT', id })}
         onSeek={seek}
         onSplitAtClick={onSplitAtClick}
+        onResizeCommit={onResizeCommit}
       />
     </div>
   );
