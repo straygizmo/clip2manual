@@ -308,6 +308,7 @@ export function EditorLayout() {
         segments={segments}
         selectedId={state.selectedSegmentId}
         playingId={playingId}
+        playing={false}
         onSelect={(id) => dispatch({ type: 'SELECT_SEGMENT', id })}
         onSeek={seek}
         onSplitAtClick={onSplitAtClick}
