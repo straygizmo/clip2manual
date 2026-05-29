@@ -154,6 +154,7 @@ export function Timeline({
     <div
       className="relative bg-timeline-bg p-2 outline-none"
       tabIndex={0}
+      onMouseDown={(e) => (e.currentTarget as HTMLElement).focus()}
       onKeyDown={handleKeyDown}
       onWheel={handleWheel}
     >
