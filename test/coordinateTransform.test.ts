@@ -47,3 +47,28 @@ describe('isWithinDisplay', () => {
     expect(isWithinDisplay(0, 1080, single)).toBe(false);
   });
 });
+
+const win: CaptureGeometry = {
+  // プライマリ画面上 (200,150) を左上にした 800×600 のウィンドウを 1280×720 で録画
+  displayOriginX: 200, displayOriginY: 150,
+  displayWidth: 800, displayHeight: 600,
+  videoWidth: 1280, videoHeight: 720,
+};
+
+describe('osToVideoCoords (window source)', () => {
+  it('maps an in-window OS point to scaled video coords', () => {
+    // OS(600,450) - origin(200,150) = rel(400,300) → scaled (640, 360)
+    expect(osToVideoCoords(600, 450, win)).toEqual({ x: 640, y: 360 });
+  });
+});
+
+describe('isWithinDisplay (window source)', () => {
+  it('returns true inside the window rect', () => {
+    expect(isWithinDisplay(600, 450, win)).toBe(true);
+  });
+  it('returns false just outside the window rect', () => {
+    expect(isWithinDisplay(199, 450, win)).toBe(false);
+    expect(isWithinDisplay(600, 149, win)).toBe(false);
+    expect(isWithinDisplay(1000, 450, win)).toBe(false); // origin+width=1000、半開区間
+  });
+});
