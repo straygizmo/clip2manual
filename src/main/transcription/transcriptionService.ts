@@ -4,6 +4,13 @@ import * as path from 'node:path';
 import { type ClickEvent, type Segment, type SegmentVoice } from '../../shared/types';
 import { groupTokensIntoPhrases, mapWhisperSegments, type WhisperJson } from './mapSegments';
 import { type WhisperRunner } from './whisperRunner';
+import { type SilenceInterval, silenceMidsMs } from './silenceDetect';
+
+/** 音声から無音区間を検出するアダプタ（テストでは省略可）。 */
+export type SilenceDetector = (
+  audioPath: string,
+  signal?: AbortSignal,
+) => Promise<SilenceInterval[]>;
 
 export interface TranscribeOptions {
   runner: WhisperRunner;
@@ -15,6 +22,8 @@ export interface TranscribeOptions {
   language: string;
   clicks: ClickEvent[];
   defaultVoice: SegmentVoice;
+  /** 無音区間検出。省略時は空（句読点 + gap fallback のみで分割）。 */
+  silenceDetector?: SilenceDetector;
   onProgress?: (percent: number) => void;
   signal?: AbortSignal;
 }
@@ -33,7 +42,14 @@ export async function transcribe(opts: TranscribeOptions): Promise<Segment[]> {
   });
   const raw = await fs.readFile(`${outBase}.json`, 'utf8');
   const json = JSON.parse(raw) as WhisperJson;
-  // whisper は --max-len 1 でトークン単位の区切りを返すので、句読点で句にまとめ直す。
-  const phrases = groupTokensIntoPhrases(json.transcription);
+
+  // 無音区間（あれば）→ 中央時刻リスト。whisper は無音をトークン duration に
+  // 吸収しがちなので、外部 VAD なしのヒントとして使う。
+  const silences = opts.silenceDetector
+    ? await opts.silenceDetector(opts.audioPath, opts.signal)
+    : [];
+  const mids = silenceMidsMs(silences);
+
+  const phrases = groupTokensIntoPhrases(json.transcription, mids);
   return mapWhisperSegments(phrases, opts.clicks, opts.defaultVoice);
 }

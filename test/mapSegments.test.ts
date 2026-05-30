@@ -137,4 +137,70 @@ describe('groupTokensIntoPhrases', () => {
     ]);
     expect(out.map((p) => p.text)).toEqual(['あい', 'うえ']);
   });
+
+  it('splits before a token whose (from, to) range contains a silence mid', () => {
+    // 実機 whisper の挙動: 隣接トークン間に gap が無く、無音が次トークンの duration に
+    // 吸収されているケース。silence_mid 2210 は 2 番目のトークン (1900-4360) に含まれる。
+    const tokens: WhisperSegment[] = [
+      { offsets: { from: 40, to: 1900 }, text: 'これ' },
+      { offsets: { from: 1900, to: 4360 }, text: 'あれ' },
+      { offsets: { from: 4360, to: 4750 }, text: 'だ' },
+    ];
+    const out = groupTokensIntoPhrases(tokens, [2210]);
+    expect(out.map((p) => p.text)).toEqual(['これ', 'あれだ']);
+    expect(out[0].offsets).toEqual({ from: 40, to: 1900 });
+    expect(out[1].offsets).toEqual({ from: 1900, to: 4750 });
+  });
+
+  it('flushes once when a silence mid lies in the gap between tokens', () => {
+    // mid=1500 はどのトークンの (from,to) にも入らず、トークン1の後・トークン2の前
+    // にある。前置 while で消化され、句境界として一度 flush する。
+    const tokens: WhisperSegment[] = [
+      { offsets: { from: 0, to: 1000 }, text: 'はい' },
+      { offsets: { from: 2000, to: 2500 }, text: 'では' },
+    ];
+    const out = groupTokensIntoPhrases(tokens, [1500]);
+    expect(out.map((p) => p.text)).toEqual(['はい', 'では']);
+  });
+
+  it('uses every silence mid even when multiple long tokens absorb silence', () => {
+    const tokens: WhisperSegment[] = [
+      { offsets: { from: 0, to: 1000 }, text: 'A' },
+      { offsets: { from: 1000, to: 3000 }, text: 'B' }, // mid=2000 入る
+      { offsets: { from: 3000, to: 5000 }, text: 'C' }, // mid=4000 入る
+      { offsets: { from: 5000, to: 6000 }, text: 'D' },
+    ];
+    const out = groupTokensIntoPhrases(tokens, [2000, 4000]);
+    expect(out.map((p) => p.text)).toEqual(['A', 'B', 'CD']);
+  });
+
+  it('ignores silence mids that fall entirely after all tokens', () => {
+    const tokens: WhisperSegment[] = [
+      { offsets: { from: 0, to: 500 }, text: 'あ' },
+      { offsets: { from: 500, to: 1000 }, text: 'い' },
+    ];
+    const out = groupTokensIntoPhrases(tokens, [9999]);
+    expect(out.map((p) => p.text)).toEqual(['あい']);
+  });
+
+  it('does not double-flush when silence mid and punctuation align', () => {
+    // 句読点でまず flush、続いて silence mid=600 (空 buffer) は no-op。
+    const tokens: WhisperSegment[] = [
+      { offsets: { from: 0, to: 500 }, text: 'あ' },
+      { offsets: { from: 500, to: 700 }, text: '。' },
+      { offsets: { from: 700, to: 1200 }, text: 'い' },
+    ];
+    const out = groupTokensIntoPhrases(tokens, [600]);
+    expect(out.map((p) => p.text)).toEqual(['あ', 'い']);
+  });
+
+  it('accepts unsorted silence mids and still splits correctly', () => {
+    const tokens: WhisperSegment[] = [
+      { offsets: { from: 0, to: 1000 }, text: 'A' },
+      { offsets: { from: 1000, to: 3000 }, text: 'B' },
+      { offsets: { from: 3000, to: 5000 }, text: 'C' },
+    ];
+    const out = groupTokensIntoPhrases(tokens, [4000, 2000]);
+    expect(out.map((p) => p.text)).toEqual(['A', 'B', 'C']);
+  });
 });

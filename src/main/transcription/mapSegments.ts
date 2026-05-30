@@ -18,11 +18,22 @@ const PHRASE_DELIMITERS = /^[、。，．！？!?,.…]+$/;
 export const PHRASE_GAP_MS = 700;
 
 /**
- * whisper --max-len 1 のトークン列を、句読点 or 無音ギャップで区切った
- * 「句」単位のセグメントに束ねる。区切りトークン自体はテキストに含めず、
+ * whisper --max-len 1 のトークン列を、句読点 / 無音区間 / 隣接トークン間ギャップで
+ * 区切った「句」単位のセグメントに束ねる。区切りトークン自体はテキストに含めず、
  * 各句は最初の内容トークンの from から最後の内容トークンの to までを範囲とする。
+ *
+ * silenceMidsMs: ffmpeg silencedetect で得た無音区間の中央時刻（ミリ秒、昇順想定）。
+ * whisper は無音をトークン境界として落とさず、隣接する内容トークンの duration に
+ * 吸収させてしまうことがある。そのため「あるトークンの (from, to) の内側に無音 mid が
+ * 入っている」場合、そのトークンを無音吸収トークンとみなし、トークンの直前で句を切る。
  */
-export function groupTokensIntoPhrases(tokens: WhisperSegment[]): WhisperSegment[] {
+export function groupTokensIntoPhrases(
+  tokens: WhisperSegment[],
+  silenceMidsMs: number[] = [],
+): WhisperSegment[] {
+  const sortedMids = [...silenceMidsMs].sort((a, b) => a - b);
+  let midIdx = 0;
+
   const phrases: WhisperSegment[] = [];
   let text = '';
   let from = 0;
@@ -36,10 +47,33 @@ export function groupTokensIntoPhrases(tokens: WhisperSegment[]): WhisperSegment
   for (const tok of tokens) {
     const t = tok.text.trim();
     if (t === '') continue; // 空トークン（先頭の無音など）は無視
-    // 直前の内容トークンから PHRASE_GAP_MS 以上空いていたら、ここを句境界として一度 flush する
+
+    // (1) このトークンの開始までに過ぎた無音 mid は、ここで句境界として消化する
+    let consumedMidBefore = false;
+    while (midIdx < sortedMids.length && sortedMids[midIdx] < tok.offsets.from) {
+      consumedMidBefore = true;
+      midIdx++;
+    }
+    if (consumedMidBefore && text !== '') flush();
+
+    // (2) このトークンの (from, to) 内に無音 mid があれば、トークンが無音を吸収している
+    //     とみなして、トークンの「前」で flush する（無音は前句末尾に属する扱い）。
+    let consumedMidInside = false;
+    while (
+      midIdx < sortedMids.length &&
+      sortedMids[midIdx] >= tok.offsets.from &&
+      sortedMids[midIdx] < tok.offsets.to
+    ) {
+      consumedMidInside = true;
+      midIdx++;
+    }
+    if (consumedMidInside && text !== '') flush();
+
+    // (3) 隣接トークン間のギャップが PHRASE_GAP_MS 以上なら fallback で flush
     if (text !== '' && tok.offsets.from - to >= PHRASE_GAP_MS) {
       flush();
     }
+
     if (PHRASE_DELIMITERS.test(t)) {
       flush();
       continue;

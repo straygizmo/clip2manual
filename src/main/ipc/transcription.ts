@@ -5,9 +5,11 @@ import * as path from 'node:path';
 import { projectSession } from '../projectSession';
 import { assetPath } from '../projectStore';
 import { resolveWhisper } from '../whisperPaths';
+import { resolveFfmpeg } from '../ffmpegPaths';
 import { vendorDir } from '../provision/vendorDirs';
 import { transcribe } from '../transcription/transcriptionService';
 import { SpawnWhisperRunner } from '../transcription/whisperRunner';
+import { detectSilenceMs } from '../transcription/silenceDetect';
 import { type ClickEvent } from '../../shared/types';
 
 let currentAbort: AbortController | null = null;
@@ -16,6 +18,7 @@ export function registerTranscriptionIpc(): void {
   ipcMain.handle('transcription:run', async (event) => {
     const { dir, project } = projectSession.getCurrent();
     const { binPath, modelPath } = resolveWhisper({ vendorDir: vendorDir('whisper') });
+    const { ffmpegPath } = resolveFfmpeg({ vendorDir: vendorDir('ffmpeg') });
 
     const clicksRaw = await fs.readFile(assetPath(dir, 'assets/clicks.json'), 'utf8');
     const clicks = JSON.parse(clicksRaw) as ClickEvent[];
@@ -35,6 +38,8 @@ export function registerTranscriptionIpc(): void {
         language: 'ja',
         clicks,
         defaultVoice,
+        silenceDetector: (audioPath, signal) =>
+          detectSilenceMs({ ffmpegPath, audioPath, signal }),
         onProgress: (pct) => event.sender.send('transcription:progress', pct),
         signal: currentAbort.signal,
       });
