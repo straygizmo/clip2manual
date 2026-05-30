@@ -86,6 +86,7 @@
     "creditWithSpeaker": "クレジット: VOICEVOX：{{speaker}}",
     "cut": "カット",
     "enable": "有効化",
+    "playSegment": "再生する",
     "splitAtPlayhead": "分割（再生ヘッド位置）",
     "mergeNext": "次と結合",
     "cutBadge": "カット中（プレビュー/書き出しで除外）",
