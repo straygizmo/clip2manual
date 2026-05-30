@@ -7,6 +7,7 @@ import {
   isWinBoundsAvailable,
   parseHwndFromSourceId,
 } from '../native/winBounds';
+import { tMain } from '../i18n';
 
 export interface PendingCaptureBounds {
   /** OS スクリーン座標・物理ピクセル */
@@ -57,11 +58,10 @@ export function __setBoundsResolverForTest(r: BoundsResolver): void {
   boundsResolver = r;
 }
 
-// Task 13 で i18n に置き換える一時 fallback。
 function labelTemplates(): { displayPrimary: string; display: string } {
   return {
-    displayPrimary: 'ディスプレイ {{n}}（プライマリ・{{w}}×{{h}}）',
-    display: 'ディスプレイ {{n}}（{{w}}×{{h}}）',
+    displayPrimary: tMain('home.source.displayPrimary'),
+    display: tMain('home.source.display'),
   };
 }
 

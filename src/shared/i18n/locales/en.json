@@ -22,6 +22,23 @@
     "recentDeleteFailed": "Delete failed: {{message}}",
     "recentRename": "Rename",
     "recentRenameFailed": "Rename failed: {{message}}",
+    "source": {
+      "placeholder": "Select capture target",
+      "loading": "Loading…",
+      "empty": "No targets found",
+      "groupScreens": "Screens",
+      "groupWindows": "Windows",
+      "displayPrimary": "Display {{n}} (primary, {{w}}×{{h}})",
+      "display": "Display {{n}} ({{w}}×{{h}})",
+      "notSelected": "Please select a capture target",
+      "prepareFailed": {
+        "generic": "Failed to prepare capture target",
+        "not-found": "Selected capture target is no longer available",
+        "minimized": "The selected window is minimized. Please restore it and try again",
+        "bounds-failed": "Failed to read window bounds",
+        "unsupported": "Window-level capture is not supported on this OS"
+      }
+    },
     "cancel": "Cancel"
   },
   "deps": {
