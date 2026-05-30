@@ -5,7 +5,7 @@ import { useEditor } from '../state/editorStore';
 import type { RecentProject } from '../global';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Circle, Square, FolderOpen, Play } from 'lucide-react';
+import { Circle, Square, FolderOpen, Play, Trash2 } from 'lucide-react';
 import { DependencyStatus } from './DependencyStatus';
 
 export function HomeScreen() {
@@ -32,6 +32,7 @@ export function HomeScreen() {
       recorderRef.current = recorder;
       setRecording(true);
       setStatus(t('home.statusRecording'));
+      await window.api.notifyRecordingStarted();
     } catch (err) {
       recorderRef.current = null;
       setRecording(false);
@@ -42,6 +43,7 @@ export function HomeScreen() {
   async function onStop() {
     const recorder = recorderRef.current;
     if (!recorder) return;
+    await window.api.notifyRecordingStopped();
     try {
       const result = await recorder.stop();
       const video = await result.videoBlob.arrayBuffer();
@@ -57,6 +59,26 @@ export function HomeScreen() {
       setRecording(false);
       recorderRef.current = null;
       setStatus(t('home.saveFailed', { message: String(err) }));
+    }
+  }
+
+  // ウィンドウ復帰での自動停止: 録画中だけ購読
+  useEffect(() => {
+    if (!recording) return;
+    const off = window.api.onWindowAutoStop(() => { void onStop(); });
+    return off;
+    // onStop は ref/state を closures で読むが、recording をトリガにしたいので依存は最小化
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recording]);
+
+  async function onDelete(r: RecentProject) {
+    const ok = window.confirm(t('home.recentDeleteConfirm', { name: r.name }));
+    if (!ok) return;
+    try {
+      await window.api.trashProject(r.projectDir);
+      refreshRecent();
+    } catch (err) {
+      window.alert(t('home.recentDeleteFailed', { message: String(err) }));
     }
   }
 
@@ -101,6 +123,14 @@ export function HomeScreen() {
               <span className="ml-auto text-xs text-muted-foreground">
                 {new Date(r.createdAt).toLocaleString()}
               </span>
+              <Button
+                size="icon"
+                variant="ghost"
+                title={t('home.recentDelete')}
+                onClick={() => void onDelete(r)}
+              >
+                <Trash2 className="size-4" />
+              </Button>
             </Card>
           ))}
         </div>

@@ -15,7 +15,10 @@
     "saveFailed": "保存に失敗しました: {{message}}",
     "recentTitle": "最近の録画",
     "recentEmpty": "まだ録画がありません。",
-    "recentOpen": "開く"
+    "recentOpen": "開く",
+    "recentDelete": "削除",
+    "recentDeleteConfirm": "「{{name}}」を OS のゴミ箱に移動しますか？",
+    "recentDeleteFailed": "削除に失敗しました: {{message}}"
   },
   "deps": {
     "title": "依存関係",

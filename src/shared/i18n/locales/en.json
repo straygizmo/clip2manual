@@ -15,7 +15,10 @@
     "saveFailed": "Failed to save: {{message}}",
     "recentTitle": "Recent recordings",
     "recentEmpty": "No recordings yet.",
-    "recentOpen": "Open"
+    "recentOpen": "Open",
+    "recentDelete": "Delete",
+    "recentDeleteConfirm": "Move \"{{name}}\" to the OS trash?",
+    "recentDeleteFailed": "Delete failed: {{message}}"
   },
   "deps": {
     "title": "Dependencies",
