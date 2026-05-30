@@ -9,7 +9,7 @@ import { StepperToolbar } from './StepperToolbar';
 import { decodeToWav } from '../audio/decodeToWav';
 import { projectAssetUrl } from './assetUrl';
 import { type Segment, type SpeakerOption } from '../../shared/types';
-import { splitAt, resizeBoundary, toggleEnabled, mergeWithNext } from '../state/segmentOps';
+import { splitAt, resizeBoundary, toggleEnabled, mergeWithNext, deleteClick } from '../state/segmentOps';
 import { pickSubtitle } from '../../shared/subtitleSelect';
 import { toast } from 'sonner';
 
@@ -95,6 +95,12 @@ export function EditorLayout() {
     const next = splitAt(segments, id, state.currentTime, newId);
     if (next === segments) return;
     applySegments(next, newId);
+  };
+  const onDeleteClick = (key: { segmentId: string; t: number; x: number; y: number }) => {
+    const next = deleteClick(segments, key);
+    if (next === segments) return;
+    dispatch({ type: 'SET_SEGMENTS', segments: next });
+    void window.api.updateSegments(next);
   };
 
   async function runTranscription() {
@@ -288,6 +294,7 @@ export function EditorLayout() {
           onSeek={seek}
           onSplitAtClick={onSplitAtClick}
           onResizeCommit={onResizeCommit}
+          onDeleteClick={onDeleteClick}
         />
       </div>
     </div>
