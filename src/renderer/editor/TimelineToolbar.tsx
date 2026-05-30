@@ -3,7 +3,7 @@ import { type Segment } from '../../shared/types';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import {
-  Play, Pause, Download, X,
+  Play, Pause,
   Scissors, SplitSquareHorizontal, ArrowDownToLine,
 } from 'lucide-react';
 
@@ -22,17 +22,11 @@ interface Props {
   onToggleCut: (id: string) => void;
   onSplitAtPlayhead: (id: string) => void;
   onMergeNext: (id: string) => void;
-
-  exportRunning: boolean;
-  exportPercent: number;
-  onExport: () => void;
-  onCancelExport: () => void;
 }
 
 export function TimelineToolbar({
   playing, mode, ttsLoading, missingClips, onTogglePlay, onSwitchMode,
   segments, selected, currentTime, ttsBusy, onToggleCut, onSplitAtPlayhead, onMergeNext,
-  exportRunning, exportPercent, onExport, onCancelExport,
 }: Props) {
   const { t } = useTranslation();
 
@@ -106,18 +100,6 @@ export function TimelineToolbar({
         <ArrowDownToLine className="size-4" />
         {t('inspector.mergeNext')}
       </Button>
-
-      <div className="ml-auto flex shrink-0 items-center gap-2">
-        {exportRunning && (
-          <Button variant="ghost" size="sm" onClick={onCancelExport}>
-            <X className="size-4" />{t('common.cancel')}
-          </Button>
-        )}
-        <Button size="sm" onClick={onExport} disabled={exportRunning}>
-          <Download className="size-4" />
-          {exportRunning ? t('preview.exporting', { percent: exportPercent }) : t('preview.export')}
-        </Button>
-      </div>
     </div>
   );
 }

@@ -276,10 +276,6 @@ export function EditorLayout() {
           onToggleCut={onToggleCut}
           onSplitAtPlayhead={onSplitAtPlayhead}
           onMergeNext={onMergeNext}
-          exportRunning={exportState.status === 'running'}
-          exportPercent={exportState.percent}
-          onExport={doExport}
-          onCancelExport={() => window.api.cancelExport()}
         />
         <Timeline
           duration={duration}
