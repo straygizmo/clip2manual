@@ -58,7 +58,7 @@ const [selectedClick, setSelectedClick] = useState<SelectedClick | null>(null);
 クリック削除のハンドラは `EditorLayout` から props として渡す:
 
 ```ts
-onDeleteClick?: (segmentId: string, t: number, x: number, y: number) => void;
+onDeleteClick?: (key: { segmentId: string; t: number; x: number; y: number }) => void;
 ```
 
 `Esc` と `Delete/Backspace` のキー処理は Timeline が既に持つ `handleKeyDown`（`<div tabIndex={0} onKeyDown={handleKeyDown}>` 上の `+/-/0` ズーム実装と同じ場所）に追加する。Timeline がフォーカスを持っている時のみ反応するため、Inspector のテキスト編集中に誤発火する余地がない。
