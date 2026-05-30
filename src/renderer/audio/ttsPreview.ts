@@ -36,6 +36,7 @@ export class TtsPreviewController {
   private activeId: string | null = null;
   private playGen = 0; // play() の await 中に pause/stop が来た場合の無効化用
   private loadGen = 0; // load() の await 中に別の load が来た場合、古い側の書き込みを破棄するための世代カウンタ
+  private videoPlayPending = false; // tick から video.play() を 1 度に 1 回だけ呼ぶためのロック
 
   constructor(private cb: TtsPreviewCallbacks = {}) {}
 
@@ -181,15 +182,22 @@ export class TtsPreviewController {
       const visibleDuration = slot.clipDuration > 0 ? slot.clipDuration : videoSpan;
       this.cb.onSlotProgress?.({ slotId: slot.segmentId, offsetInSlot: offset, visibleDuration });
       if (offset < videoSpan) {
-        if (this.video.paused) void this.video.play().catch(() => {});
+        // seek 中は play 要求しない（seek を中断する AbortError を誘発し、
+        // 古い位置で一瞬再生してから seek 完了で飛ぶ "ブルブル" の原因になる）。
+        if (this.video.paused && !this.video.seeking && !this.videoPlayPending) {
+          this.videoPlayPending = true;
+          this.video.play()
+            .catch(() => { /* 再生不可は無視 */ })
+            .finally(() => { this.videoPlayPending = false; });
+        }
         const target = slot.videoStart + offset;
         // ギャップ越えの seek 中に新しい seek を発行すると、seek が完了する前に
-        // target が先へ進んで seek が連鎖し、映像が「ブルブル」と震えて見える。
+        // target が先へ進んで seek が連鎖し、映像が震えて見える。
         if (!this.video.seeking && Math.abs(this.video.currentTime - target) > DRIFT_THRESHOLD) {
           this.video.currentTime = target;
         }
       } else {
-        if (!this.video.paused) this.video.pause();
+        if (!this.video.paused && !this.videoPlayPending) this.video.pause();
         if (!this.video.seeking && Math.abs(this.video.currentTime - slot.videoEnd) > FREEZE_THRESHOLD) {
           this.video.currentTime = slot.videoEnd;
         }
