@@ -11,17 +11,34 @@ export interface StepInputs {
 }
 
 export function deriveStepStatuses(input: StepInputs): StepStatuses {
-  const { segments, transcription } = input;
+  const { segments, transcription, tts, export: ex } = input;
   const hasSegments = segments.length > 0;
+  const someHasAudio = segments.some((s) => !!s.ttsAudio);
+  const enabled = segments.filter((s) => s.enabled !== false);
+  const allEnabledHaveAudio = hasSegments && enabled.length > 0 && enabled.every((s) => !!s.ttsAudio);
 
   const s1: StepStatus =
     transcription.status === 'running' ? 'running' :
     transcription.status === 'error'   ? 'error'   :
     hasSegments                        ? 'done'    : 'active';
 
-  if (!hasSegments) return [s1, 'locked', 'locked', 'locked'];
-  // 後続タスクで step 2-4 を完成させる
-  return [s1, 'active', 'active', 'locked'];
+  const s2: StepStatus =
+    !hasSegments  ? 'locked' :
+    someHasAudio  ? 'done'   : 'active';
+
+  const s3: StepStatus =
+    !hasSegments              ? 'locked'  :
+    tts.status === 'running'  ? 'running' :
+    tts.status === 'error'    ? 'error'   :
+    allEnabledHaveAudio       ? 'done'    : 'active';
+
+  const s4: StepStatus =
+    !allEnabledHaveAudio      ? 'locked'  :
+    ex.status === 'running'   ? 'running' :
+    ex.status === 'error'     ? 'error'   :
+    ex.status === 'done'      ? 'done'    : 'active';
+
+  return [s1, s2, s3, s4];
 }
 
 export function activeStep(s: StepStatuses): 1 | 2 | 3 | 4 {
