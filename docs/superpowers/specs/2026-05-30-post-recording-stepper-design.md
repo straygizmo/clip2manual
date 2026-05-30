@@ -42,7 +42,7 @@ Row 2 (40px): アクティブステップの操作パネル
 
 各チップは「番号・ラベル・状態アイコン」を表示する。状態は `locked`（○） / `active`（●） / `running`（●＋スピナー） / `done`（✓） / `error`（✕）。
 
-`active|running` のうち最小のステップがアクティブステップ。Row 2 にはアクティブステップ専用の操作パネルを表示する。ユーザーはチップをクリックして別ステップに切り替えられる（`locked` チップは押せない。Step 1 チップは `done` 後 Disabled）。
+アクティブステップは次の優先順で決定する: ①`running` のステップがあれば最小の `running` を選ぶ ②無ければ `error` のステップがあれば最小の `error` を選ぶ ③無ければ最小の `active` を選ぶ ④全て `done|locked` なら 4 を選ぶ（書き出し済みでも再書き出ししやすいように Step 4 をアクティブにしておく）。Row 2 にはアクティブステップ専用の操作パネルを表示する。ユーザーはチップをクリックして別ステップに切り替えられる（`locked` チップは押せない。Step 1 チップは `done` 後 Disabled）。
 
 ## 4. コンポーネント構成
 
@@ -82,7 +82,14 @@ export function activeStep(statuses: [StepStatus, StepStatus, StepStatus, StepSt
 | ③ 音声生成 | segments 空 | segments 非空（編集中も active 扱い） | `tts.status === 'running'` | enabled な全セグメントが TTS クリップ持ち | `tts.status === 'error'` |
 | ④ 書き出し | enabled な全セグメントが TTS クリップ持ちではない | 上記が満たされる | `export.status === 'running'` | `export.status === 'done'` | `export.status === 'error'` |
 
-`activeStep` は `[s1, s2, s3, s4]` を走査して最小の `active|running` インデックスを返す。全て `done|locked` の場合は 4 を返す（書き出し済みでも Step 4 をアクティブにしておくと再書き出ししやすい）。
+`activeStep` は次の優先順で 1〜4 を返す:
+
+1. 最小の `running` ステップ
+2. 無ければ最小の `error` ステップ
+3. 無ければ最小の `active` ステップ
+4. 全て `done|locked` なら 4
+
+これにより「TTS 生成中はクリップが未生成でも Step 3 パネルが出る」「文字起こしエラー時は Step 1 パネルが残る」が両立する。
 
 ### 4.2 各ステップのパネル中身
 
