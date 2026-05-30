@@ -15,8 +15,9 @@ export function parseHwndFromSourceId(sourceId: string): bigint {
 }
 
 interface User32 {
-  GetWindowRect: (hwnd: bigint, rectOut: object) => number;
-  IsIconic: (hwnd: bigint) => number;
+  // koffi の 'bool' は JS の boolean に変換される。number 比較すると常に !== 0 が真になり全ウィンドウが「最小化」判定される事故を起こすので boolean で受ける。
+  GetWindowRect: (hwnd: bigint, rectOut: object) => boolean;
+  IsIconic: (hwnd: bigint) => boolean;
 }
 
 let cachedUser32: User32 | null = null;
@@ -52,7 +53,7 @@ export function getWindowRectByHwnd(hwnd: bigint): WindowRect {
 
 export function isWindowMinimized(hwnd: bigint): boolean {
   const u = loadUser32();
-  return u.IsIconic(hwnd) !== 0;
+  return u.IsIconic(hwnd);
 }
 
 /** koffi/user32 がロードできるかを確認（テストや non-Windows での早期判定に使う）。 */
