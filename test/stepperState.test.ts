@@ -18,6 +18,32 @@ describe('deriveStepStatuses', () => {
     });
     expect(r).toEqual(['active', 'locked', 'locked', 'locked']);
   });
+
+  it('step 1 is running while transcription is running', () => {
+    const r = deriveStepStatuses({
+      segments: [],
+      transcription: { status: 'running', error: null },
+      tts: idleTts, export: idleExp,
+    });
+    expect(r[0]).toBe('running');
+  });
+
+  it('step 1 is error when transcription failed', () => {
+    const r = deriveStepStatuses({
+      segments: [],
+      transcription: { status: 'error', error: 'boom' },
+      tts: idleTts, export: idleExp,
+    });
+    expect(r[0]).toBe('error');
+  });
+
+  it('step 1 is done when segments exist', () => {
+    const r = deriveStepStatuses({
+      segments: [seg()],
+      transcription: idleTx, tts: idleTts, export: idleExp,
+    });
+    expect(r[0]).toBe('done');
+  });
 });
 
 describe('activeStep', () => {

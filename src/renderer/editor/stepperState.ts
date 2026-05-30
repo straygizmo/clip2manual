@@ -11,11 +11,17 @@ export interface StepInputs {
 }
 
 export function deriveStepStatuses(input: StepInputs): StepStatuses {
-  const { segments } = input;
+  const { segments, transcription } = input;
   const hasSegments = segments.length > 0;
-  if (!hasSegments) return ['active', 'locked', 'locked', 'locked'];
-  // 仮実装。後続タスクで本実装に置き換える
-  return ['done', 'active', 'active', 'locked'];
+
+  const s1: StepStatus =
+    transcription.status === 'running' ? 'running' :
+    transcription.status === 'error'   ? 'error'   :
+    hasSegments                        ? 'done'    : 'active';
+
+  if (!hasSegments) return [s1, 'locked', 'locked', 'locked'];
+  // 後続タスクで step 2-4 を完成させる
+  return [s1, 'active', 'active', 'locked'];
 }
 
 export function activeStep(s: StepStatuses): 1 | 2 | 3 | 4 {
