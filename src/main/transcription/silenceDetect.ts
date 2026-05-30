@@ -5,7 +5,7 @@ import { spawn } from 'node:child_process';
 export const SILENCE_NOISE_DB = -30;
 
 /** 1 つの無音と認める最短時間（秒）。意識的に作る句間ポーズを拾える程度の値。 */
-export const SILENCE_MIN_DUR_SEC = 0.5;
+export const SILENCE_MIN_DUR_SEC = 1.5;
 
 export interface SilenceInterval {
   /** 無音区間の開始（ミリ秒）。 */
