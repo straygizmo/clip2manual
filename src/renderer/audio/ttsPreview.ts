@@ -183,10 +183,16 @@ export class TtsPreviewController {
       if (offset < videoSpan) {
         if (this.video.paused) void this.video.play().catch(() => {});
         const target = slot.videoStart + offset;
-        if (Math.abs(this.video.currentTime - target) > DRIFT_THRESHOLD) this.video.currentTime = target;
+        // ギャップ越えの seek 中に新しい seek を発行すると、seek が完了する前に
+        // target が先へ進んで seek が連鎖し、映像が「ブルブル」と震えて見える。
+        if (!this.video.seeking && Math.abs(this.video.currentTime - target) > DRIFT_THRESHOLD) {
+          this.video.currentTime = target;
+        }
       } else {
         if (!this.video.paused) this.video.pause();
-        if (Math.abs(this.video.currentTime - slot.videoEnd) > FREEZE_THRESHOLD) this.video.currentTime = slot.videoEnd;
+        if (!this.video.seeking && Math.abs(this.video.currentTime - slot.videoEnd) > FREEZE_THRESHOLD) {
+          this.video.currentTime = slot.videoEnd;
+        }
       }
     } else {
       this.cb.onSlotProgress?.(null);
