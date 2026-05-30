@@ -186,6 +186,9 @@ export function HomeScreen() {
                 )}
                 {!isRenaming && (
                   <>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(r.createdAt).toLocaleString()}
+                    </span>
                     <Button
                       size="icon"
                       variant="ghost"
@@ -194,9 +197,6 @@ export function HomeScreen() {
                     >
                       <Pencil className="size-4" />
                     </Button>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(r.createdAt).toLocaleString()}
-                    </span>
                     <Button
                       size="icon"
                       variant="ghost"
