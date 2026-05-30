@@ -177,8 +177,17 @@ export class TtsPreviewController {
       }
       const offset = previewTime - slot.slotStart;
       const videoSpan = Math.max(0, slot.videoEnd - slot.videoStart);
-      // 再生ヘッド用に現在の映像時刻を通知（区間内は進行、区間外は末尾で保持）
-      this.cb.onTime?.(offset < videoSpan ? slot.videoStart + offset : slot.videoEnd);
+      // 再生ヘッドは現スロットの slotDuration を通して videoStart → 次スロットの
+      // videoStart（最終スロットは自身の videoEnd）まで一定速度で線形補間する。
+      // 旧実装は offset >= videoSpan のとき videoEnd で停止していたため、tail
+      // とギャップ区間で再生ヘッドが「右端で止まる」見え方になっていた。
+      const slotIdx = this.slots.indexOf(slot);
+      const nextVideoStart = slotIdx >= 0 && slotIdx + 1 < this.slots.length
+        ? this.slots[slotIdx + 1].videoStart
+        : slot.videoEnd;
+      const fraction = slot.slotDuration > 0 ? offset / slot.slotDuration : 0;
+      const playheadTime = slot.videoStart + fraction * (nextVideoStart - slot.videoStart);
+      this.cb.onTime?.(playheadTime);
       const visibleDuration = slot.clipDuration > 0 ? slot.clipDuration : videoSpan;
       this.cb.onSlotProgress?.({ slotId: slot.segmentId, offsetInSlot: offset, visibleDuration });
       if (offset < videoSpan) {
