@@ -6,6 +6,7 @@ import { stopVoicevoxEngine } from './ipc/tts';
 import { pickProxyFromEnv } from './provision/proxyConfig';
 import { setProxyCreds } from './provision/download';
 import { setMainLanguage } from './i18n';
+import { takePendingCaptureSourceId } from './ipc/captureSources';
 
 registerAssetScheme(); // app ready より前に呼ぶ
 
@@ -80,15 +81,18 @@ app.whenReady().then(async () => {
   registerIpc();
   registerAssetProtocol();
   session.defaultSession.setDisplayMediaRequestHandler((_request, callback) => {
+    const wanted = takePendingCaptureSourceId();
     desktopCapturer
-      .getSources({ types: ['screen'] })
+      .getSources({ types: ['window', 'screen'] })
       .then((sources) => {
-        // TODO phase-2+: allow the user to choose which display/window to capture.
-        callback({ video: sources[0], audio: 'loopback' });
+        const pick = wanted ? sources.find((s) => s.id === wanted) : undefined;
+        if (wanted && !pick) {
+          console.warn(`[capture] pending source ${wanted} not found in current sources; falling back to sources[0]`);
+        }
+        callback({ video: pick ?? sources[0], audio: 'loopback' });
       })
       .catch((err) => {
         console.error('Failed to enumerate screen sources for display media', err);
-        // Resolve with no video so the renderer's getDisplayMedia rejects instead of hanging.
         callback({});
       });
   });

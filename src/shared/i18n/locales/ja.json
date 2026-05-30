@@ -22,6 +22,23 @@
     "recentDeleteFailed": "削除に失敗しました: {{message}}",
     "recentRename": "名前を変更",
     "recentRenameFailed": "名前変更に失敗しました: {{message}}",
+    "source": {
+      "placeholder": "録画対象を選択",
+      "loading": "読み込み中…",
+      "empty": "対象が見つかりません",
+      "groupScreens": "画面",
+      "groupWindows": "ウィンドウ",
+      "displayPrimary": "ディスプレイ {{n}}（プライマリ・{{w}}×{{h}}）",
+      "display": "ディスプレイ {{n}}（{{w}}×{{h}}）",
+      "notSelected": "録画対象を選択してください",
+      "prepareFailed": {
+        "generic": "録画対象の準備に失敗しました",
+        "not-found": "選択された録画対象が見つかりません",
+        "minimized": "選択されたウィンドウが最小化されています。復元してから録画してください",
+        "bounds-failed": "ウィンドウの位置取得に失敗しました",
+        "unsupported": "この OS ではウィンドウ単位の録画はサポートされていません"
+      }
+    },
     "cancel": "キャンセル"
   },
   "deps": {

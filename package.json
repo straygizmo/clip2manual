@@ -43,8 +43,17 @@
   },
   "build": {
     "extraResources": [
-      { "from": "vendor/fonts", "to": "fonts" },
-      { "from": "resources/icons", "to": "icons" }
+      {
+        "from": "vendor/fonts",
+        "to": "fonts"
+      },
+      {
+        "from": "resources/icons",
+        "to": "icons"
+      }
     ]
+  },
+  "optionalDependencies": {
+    "koffi": "^2.16.2"
   }
 }
