@@ -104,19 +104,15 @@ export const PreviewPlayer = forwardRef<PreviewPlayerHandle, Props>(function Pre
 
   const inTts = () => mode === 'tts';
 
+  // 元音声モードの再生/一時停止は video 要素だけを叩き、音声側は <video> 要素の
+  // onPlay/onPause ハンドラで一本化する。以前は toggleOriginal でも a.play() を
+  // 呼んでいたため、video の onPlay で再度 a.play() が走り二重呼び出しで前者が
+  // AbortError を出して無音になるケースがあった（pause→resume で再現）。
   const toggleOriginal = () => {
     const v = videoRef.current;
-    const a = audioRef.current;
     if (!v) return;
-    if (v.paused) {
-      if (a && Number.isFinite(v.currentTime)) { a.currentTime = v.currentTime; void a.play(); }
-      void v.play();
-      notifyPlaying(true);
-    } else {
-      v.pause();
-      a?.pause();
-      notifyPlaying(false);
-    }
+    if (v.paused) void v.play();
+    else v.pause();
   };
 
   const toggleTts = async () => {
@@ -188,6 +184,23 @@ export const PreviewPlayer = forwardRef<PreviewPlayerHandle, Props>(function Pre
     onMissingChange?.(m);
   }, [mode, ttsLoading, segments, onMissingChange]);
 
+  // 元音声モードの再生中は rAF で 60fps に currentTime を通知して playhead を
+  // なめらかに動かす。<video>.ontimeupdate の発火間隔は ~250ms とまばらで、
+  // 既定では赤バーが「とびとび」に見える。
+  useEffect(() => {
+    if (mode !== 'original' || !playing) return;
+    const v = videoRef.current;
+    if (!v) return;
+    let rafId = 0;
+    const tick = () => {
+      if (v.paused) return;
+      onTimeRef.current(v.currentTime);
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [mode, playing]);
+
   const clicks = segments.flatMap((s) => s.clicks);
 
   return (
@@ -208,7 +221,19 @@ export const PreviewPlayer = forwardRef<PreviewPlayerHandle, Props>(function Pre
               onTime(e.currentTarget.currentTime);
               syncAudioTime();
             }}
-            onPlay={() => { if (inTts()) return; if (audioRef.current) void audioRef.current.play(); notifyPlaying(true); }}
+            onPlay={(e) => {
+              if (inTts()) return;
+              const a = audioRef.current;
+              if (a && Number.isFinite(e.currentTarget.currentTime)) {
+                // 念のため currentTime を video に揃えてから（一時停止中の微小ドリフト対策）
+                // play する。catch しないと未捕捉拒否がコンソールに残ることがある。
+                if (Math.abs(a.currentTime - e.currentTarget.currentTime) > 0.05) {
+                  a.currentTime = e.currentTarget.currentTime;
+                }
+                void a.play().catch(() => { /* 再生不可は無視 */ });
+              }
+              notifyPlaying(true);
+            }}
             onPause={() => { if (inTts()) return; audioRef.current?.pause(); notifyPlaying(false); }}
             onSeeked={() => { if (inTts()) return; syncAudioTime(); }}
           />
