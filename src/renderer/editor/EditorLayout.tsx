@@ -5,15 +5,11 @@ import { PreviewPlayer, type PreviewPlayerHandle } from './PreviewPlayer';
 import { Timeline } from './Timeline';
 import { TimelineToolbar } from './TimelineToolbar';
 import { Inspector } from './Inspector';
+import { StepperToolbar } from './StepperToolbar';
 import { decodeToWav } from '../audio/decodeToWav';
 import { projectAssetUrl } from './assetUrl';
 import { type Segment, type SpeakerOption } from '../../shared/types';
 import { splitAt, resizeBoundary, toggleEnabled, mergeWithNext } from '../state/segmentOps';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Slider } from '@/components/ui/slider';
-import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, FileText, Mic, X, Subtitles } from 'lucide-react';
 import { pickSubtitle } from '../../shared/subtitleSelect';
 import { toast } from 'sonner';
 
@@ -203,99 +199,31 @@ export function EditorLayout() {
   const ttsBusy = tts.status === 'running';
   const defaultSpeaker = project.settings.tts.defaultSpeaker;
   const defaultSpeed = project.settings.tts.defaultSpeed;
-  const defaultOptions = speakers.length > 0
-    ? speakers
-    : [{ speaker: defaultSpeaker, label: t('inspector.speakerFallback', { id: defaultSpeaker }) }];
 
   return (
-    <div className="grid h-screen grid-rows-[48px_1fr_auto]">
-      {/* ツールバー */}
-      <div className="flex flex-wrap items-center gap-2 bg-toolbar px-3 text-foreground">
-        <Button variant="ghost" size="sm" onClick={() => dispatch({ type: 'CLOSE_PROJECT' })}>
-          <ArrowLeft className="size-4" />{t('editor.home')}
-        </Button>
-        <span className="font-semibold">{project.meta.name}</span>
-
-        <Separator orientation="vertical" className="h-6" />
-
-        <Button variant="secondary" size="sm" onClick={runTranscription} disabled={tx.status === 'running'}>
-          <FileText className="size-4" />
-          {tx.status === 'running'
-            ? t('editor.transcribeRunning', { percent: tx.percent })
-            : t('editor.transcribe')}
-        </Button>
-        {tx.status === 'running' && (
-          <Button variant="ghost" size="sm" onClick={() => window.api.cancelTranscription()}>
-            <X className="size-4" />{t('common.cancel')}
-          </Button>
-        )}
-        {tx.status === 'error' && (
-          <span className="text-xs text-destructive">{t('editor.transcribeFailed', { message: tx.error })}</span>
-        )}
-
-        <Separator orientation="vertical" className="h-6" />
-
-        <span className="text-xs text-muted-foreground">{t('editor.defaultVoiceLabel')}</span>
-        <Select
-          value={String(defaultSpeaker)}
-          onValueChange={(v) => setDefaultVoice({ speaker: Number(v), speed: defaultSpeed })}
-          disabled={ttsBusy}
-          onOpenChange={(o) => { if (o) loadSpeakers(); }}
-        >
-          <SelectTrigger className="h-8 w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {defaultOptions.map((o) => (
-              <SelectItem key={o.speaker} value={String(o.speaker)}>{o.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Slider
-          className="w-32"
-          min={0.5}
-          max={2}
-          step={0.05}
-          value={[defaultSpeed]}
-          onValueChange={([v]) => setDefaultVoice({ speaker: defaultSpeaker, speed: v })}
-          disabled={ttsBusy}
-        />
-        <span className="w-10 text-right text-xs tabular-nums text-muted-foreground">{defaultSpeed.toFixed(2)}x</span>
-        <Button variant="secondary" size="sm" onClick={applyDefaultToAll} disabled={ttsBusy}>
-          {t('editor.applyDefaultToAll')}
-        </Button>
-
-        <Separator orientation="vertical" className="h-6" />
-
-        <label className="flex items-center gap-1 text-xs" title={t('editor.showSubtitlesTooltip')}>
-          <Subtitles className="size-4" />
-          <input
-            type="checkbox"
-            checked={showSubtitles}
-            onChange={(e) => setShowSubtitles(e.currentTarget.checked)}
-            className="size-4"
-          />
-          {t('editor.showSubtitles')}
-        </label>
-
-        <Separator orientation="vertical" className="h-6" />
-
-        <Button variant="secondary" size="sm" onClick={generateAll} disabled={ttsBusy}>
-          <Mic className="size-4" />
-          {ttsBusy ? t('editor.generating', { percent: tts.percent }) : t('editor.generateAll')}
-        </Button>
-        {ttsBusy && (
-          <Button variant="ghost" size="sm" onClick={() => window.api.cancelTts()}>
-            <X className="size-4" />{t('common.cancel')}
-          </Button>
-        )}
-        {ttsBusy && tts.percent === 0 && (
-          <span className="text-xs text-muted-foreground">{t('editor.engineStartHint')}</span>
-        )}
-        {tts.status === 'error' && (
-          <span className="text-xs text-destructive">{t('editor.ttsFailed', { message: tts.error })}</span>
-        )}
-      </div>
+    <div className="grid h-screen grid-rows-[88px_1fr_auto]">
+      <StepperToolbar
+        projectName={project.meta.name}
+        segments={segments}
+        transcription={{ status: tx.status, error: tx.error, percent: tx.percent }}
+        tts={{ status: tts.status, error: tts.error, percent: tts.percent }}
+        exportState={exportState}
+        showSubtitles={showSubtitles}
+        defaultSpeaker={defaultSpeaker}
+        defaultSpeed={defaultSpeed}
+        speakers={speakers}
+        onHome={() => dispatch({ type: 'CLOSE_PROJECT' })}
+        onTranscribe={runTranscription}
+        onCancelTranscription={() => window.api.cancelTranscription()}
+        onSetDefaultVoice={setDefaultVoice}
+        onApplyDefaultToAll={applyDefaultToAll}
+        onLoadSpeakers={loadSpeakers}
+        onGenerateAll={generateAll}
+        onCancelTts={() => window.api.cancelTts()}
+        onExport={doExport}
+        onCancelExport={() => window.api.cancelExport()}
+        onSetShowSubtitles={setShowSubtitles}
+      />
 
       {/* 中央＝プレビュー / 右＝インスペクタ */}
       <div className="grid min-h-0 grid-cols-[1fr_320px]">
