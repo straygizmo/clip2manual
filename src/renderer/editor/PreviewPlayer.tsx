@@ -6,6 +6,9 @@ import { RippleCanvas } from './RippleCanvas';
 export interface PreviewPlayerHandle {
   togglePlay: () => void;
   switchMode: (next: 'original' | 'tts') => Promise<void>;
+  /** 渡された segments で TTS コントローラを再 load する。auto-switch 後に
+   *  TTS 音声ファイルが生成された直後に呼び、空 buffers の slot を破棄する。 */
+  reloadTts: (segments: Segment[]) => Promise<void>;
 }
 
 interface Props {
@@ -101,18 +104,22 @@ export const PreviewPlayer = forwardRef<PreviewPlayerHandle, Props>(function Pre
 
   const inTts = () => mode === 'tts';
 
+  // 元音声モード：a.play() は click ハンドラ（user gesture）の中で呼ぶ必要がある。
+  // <video onPlay> イベントは v.play() 後に非同期発火するため、そこから呼ぶと
+  // gesture の有効期限切れで Chrome の autoplay policy に拒否されることがある。
+  // a.pause() は onPause で行う。currentTime の同期は onSeeked のみで行い、
+  // 自然再生中は触らない（narration.webm の seek が失敗するケースがあるため）。
   const toggleOriginal = () => {
     const v = videoRef.current;
     const a = audioRef.current;
     if (!v) return;
     if (v.paused) {
-      if (a && Number.isFinite(v.currentTime)) { a.currentTime = v.currentTime; void a.play(); }
+      if (a) {
+        void a.play().catch((err) => console.warn('[preview] narration play rejected', err));
+      }
       void v.play();
-      notifyPlaying(true);
     } else {
       v.pause();
-      a?.pause();
-      notifyPlaying(false);
     }
   };
 
@@ -136,7 +143,9 @@ export const PreviewPlayer = forwardRef<PreviewPlayerHandle, Props>(function Pre
     const gen = ++modeGen.current; // load の await 中に別の切替が来たら無効化
     videoRef.current?.pause();
     audioRef.current?.pause();
-    controllerRef.current?.stop();
+    // ctx.close() を await することで、後続の <audio> 再生時に音声デバイスが
+    // 確実に解放されている状態にする（元音声モードの無音バグ対策）。
+    await controllerRef.current?.stop();
     notifyPlaying(false);
     if (next === 'tts') {
       setTtsLoading(true);
@@ -146,7 +155,13 @@ export const PreviewPlayer = forwardRef<PreviewPlayerHandle, Props>(function Pre
     setMode(next);
   };
 
-  useImperativeHandle(ref, () => ({ togglePlay, switchMode }), [mode, playing, segments, projectDir]);
+  useImperativeHandle(ref, () => ({
+    togglePlay,
+    switchMode,
+    reloadTts: async (segs: Segment[]) => {
+      await controllerRef.current?.load(segs, projectDir);
+    },
+  }), [mode, playing, segments, projectDir]);
 
   const switchModeRef = useRef(switchMode);
   switchModeRef.current = switchMode;
@@ -155,12 +170,44 @@ export const PreviewPlayer = forwardRef<PreviewPlayerHandle, Props>(function Pre
     void switchModeRef.current(requestedMode.mode);
   }, [requestedMode]);
 
+  // TTS スロットに影響する segment 属性（境界・enabled・ttsAudio）が変わったら、
+  // コントローラを reload してスロットと buffers を最新化する。controller の
+  // loadGen により先行 load との race は無効化されるので安全。playing 中は
+  // 中断しないよう skip（次回 pause / play で追従する）。
+  const ttsRelevantSig = segments
+    .map((s) => `${s.id}:${s.videoStart}:${s.videoEnd}:${s.enabled !== false ? 1 : 0}:${s.ttsAudio ?? ''}`)
+    .join('|');
+  useEffect(() => {
+    if (mode !== 'tts') return;
+    if (playing) return;
+    void controllerRef.current?.load(segments, projectDir);
+    // segments は ttsRelevantSig 経由でだけ依存する（テキスト編集等で発火しないため）
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ttsRelevantSig, mode, projectDir]);
+
   useEffect(() => { onModeChange?.(mode); }, [mode, onModeChange]);
   useEffect(() => { onTtsLoadingChange?.(ttsLoading); }, [ttsLoading, onTtsLoadingChange]);
   useEffect(() => {
     const m = mode === 'tts' && !ttsLoading && (controllerRef.current?.missingClips() ?? false);
     onMissingChange?.(m);
   }, [mode, ttsLoading, segments, onMissingChange]);
+
+  // 元音声モードの再生中は rAF で 60fps に currentTime を通知して playhead を
+  // なめらかに動かす。<video>.ontimeupdate の発火間隔は ~250ms とまばらで、
+  // 既定では赤バーが「とびとび」に見える。
+  useEffect(() => {
+    if (mode !== 'original' || !playing) return;
+    const v = videoRef.current;
+    if (!v) return;
+    let rafId = 0;
+    const tick = () => {
+      if (v.paused) return;
+      onTimeRef.current(v.currentTime);
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [mode, playing]);
 
   const clicks = segments.flatMap((s) => s.clicks);
 
@@ -180,10 +227,21 @@ export const PreviewPlayer = forwardRef<PreviewPlayerHandle, Props>(function Pre
               // を返してユーザーのクリック位置を 0 に上書きしてしまう。
               if (e.currentTarget.paused) return;
               onTime(e.currentTarget.currentTime);
-              syncAudioTime();
+              // 自然再生中の syncAudioTime はかつて入っていたが、narration.webm の seek が
+              // 失敗するケースで a.currentTime が 0 付近に巻き戻り、audio が極端に遅く
+              // 再生されるバグの原因になっていた。再生開始時は v.play()/a.play() を
+              // 同タイミングで呼ぶことで揃えており、ユーザー seek 時は onSeeked で同期する。
             }}
-            onPlay={() => { if (inTts()) return; if (audioRef.current) void audioRef.current.play(); notifyPlaying(true); }}
-            onPause={() => { if (inTts()) return; audioRef.current?.pause(); notifyPlaying(false); }}
+            onPlay={() => {
+              if (inTts()) return;
+              // a.play() は toggleOriginal（user gesture 内）で済ませている。
+              notifyPlaying(true);
+            }}
+            onPause={() => {
+              if (inTts()) return;
+              audioRef.current?.pause();
+              notifyPlaying(false);
+            }}
             onSeeked={() => { if (inTts()) return; syncAudioTime(); }}
           />
           <RippleCanvas videoRef={videoRef} clicks={clicks} />
