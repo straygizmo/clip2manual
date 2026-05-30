@@ -138,23 +138,39 @@ describe('groupTokensIntoPhrases', () => {
     expect(out.map((p) => p.text)).toEqual(['あい', 'うえ']);
   });
 
-  it('splits before a token whose (from, to) range contains a silence mid', () => {
-    // 実機 whisper の挙動: 隣接トークン間に gap が無く、無音が次トークンの duration に
-    // 吸収されているケース。silence_mid 2210 は 2 番目のトークン (1900-4360) に含まれる。
+  it('splits AFTER the silence-absorbing token when the mid lies inside it', () => {
+    // whisper は「音→無音」の順で timestamp を伸ばすため、silence は token の後半に
+    // 入っていることが多い。よって mid 含有トークンの直後で句を切る。
     const tokens: WhisperSegment[] = [
       { offsets: { from: 40, to: 1900 }, text: 'これ' },
-      { offsets: { from: 1900, to: 4360 }, text: 'あれ' },
+      { offsets: { from: 1900, to: 4360 }, text: 'あれ' }, // 2460ms 長: silence 吸収
       { offsets: { from: 4360, to: 4750 }, text: 'だ' },
     ];
     const out = groupTokensIntoPhrases(tokens, [2210]);
-    expect(out.map((p) => p.text)).toEqual(['これ', 'あれだ']);
-    expect(out[0].offsets).toEqual({ from: 40, to: 1900 });
-    expect(out[1].offsets).toEqual({ from: 1900, to: 4750 });
+    expect(out.map((p) => p.text)).toEqual(['これあれ', 'だ']);
+    expect(out[0].offsets).toEqual({ from: 40, to: 4360 });
+    expect(out[1].offsets).toEqual({ from: 4360, to: 4750 });
+  });
+
+  it('expands the split point forward through adjacent long tokens', () => {
+    // 実機ケース再現: 「左上クリック」+ 無音 + 「最初か」を whisper が
+    // ク (短) / リ (長) / ック (長) / 最 (短) として返す。mid が「リ」に入っても、
+    // 後続「ック」も長いので前方に拡張し、最後の long の後 (= ック の後) で切る。
+    const tokens: WhisperSegment[] = [
+      { offsets: { from: 0, to: 200 }, text: '左' },
+      { offsets: { from: 200, to: 1000 }, text: '上' },
+      { offsets: { from: 1000, to: 1500 }, text: 'ク' },
+      { offsets: { from: 1500, to: 2700 }, text: 'リ' },   // 1200ms 長
+      { offsets: { from: 2700, to: 4100 }, text: 'ック' }, // 1400ms 長
+      { offsets: { from: 4100, to: 4600 }, text: '最' },   // 短
+      { offsets: { from: 4600, to: 5100 }, text: '初' },
+    ];
+    const out = groupTokensIntoPhrases(tokens, [2000]); // mid は「リ」内
+    expect(out.map((p) => p.text)).toEqual(['左上クリック', '最初']);
   });
 
   it('flushes once when a silence mid lies in the gap between tokens', () => {
-    // mid=1500 はどのトークンの (from,to) にも入らず、トークン1の後・トークン2の前
-    // にある。前置 while で消化され、句境界として一度 flush する。
+    // mid=1500 はどのトークンの (from,to) にも入らない。直前トークン (はい) の後で切る。
     const tokens: WhisperSegment[] = [
       { offsets: { from: 0, to: 1000 }, text: 'はい' },
       { offsets: { from: 2000, to: 2500 }, text: 'では' },
@@ -163,15 +179,18 @@ describe('groupTokensIntoPhrases', () => {
     expect(out.map((p) => p.text)).toEqual(['はい', 'では']);
   });
 
-  it('uses every silence mid even when multiple long tokens absorb silence', () => {
+  it('separates silences across distinct long-token clusters', () => {
+    // 短いトークンで仕切られた 2 つの long クラスタにそれぞれ silence がある場合、
+    // クラスタごとに 1 つずつ flush して 3 句に分ける。
     const tokens: WhisperSegment[] = [
-      { offsets: { from: 0, to: 1000 }, text: 'A' },
-      { offsets: { from: 1000, to: 3000 }, text: 'B' }, // mid=2000 入る
-      { offsets: { from: 3000, to: 5000 }, text: 'C' }, // mid=4000 入る
-      { offsets: { from: 5000, to: 6000 }, text: 'D' },
+      { offsets: { from: 0, to: 500 }, text: 'A' },
+      { offsets: { from: 500, to: 2000 }, text: 'B' },   // 1500ms 長
+      { offsets: { from: 2000, to: 2500 }, text: 'C' },  // 短
+      { offsets: { from: 2500, to: 4000 }, text: 'D' },  // 1500ms 長
+      { offsets: { from: 4000, to: 4500 }, text: 'E' },
     ];
-    const out = groupTokensIntoPhrases(tokens, [2000, 4000]);
-    expect(out.map((p) => p.text)).toEqual(['A', 'B', 'CD']);
+    const out = groupTokensIntoPhrases(tokens, [1200, 3000]);
+    expect(out.map((p) => p.text)).toEqual(['AB', 'CD', 'E']);
   });
 
   it('ignores silence mids that fall entirely after all tokens', () => {
@@ -184,7 +203,7 @@ describe('groupTokensIntoPhrases', () => {
   });
 
   it('does not double-flush when silence mid and punctuation align', () => {
-    // 句読点でまず flush、続いて silence mid=600 (空 buffer) は no-op。
+    // 句読点でまず flush、続いて silence-after も (空 buffer なので) no-op。
     const tokens: WhisperSegment[] = [
       { offsets: { from: 0, to: 500 }, text: 'あ' },
       { offsets: { from: 500, to: 700 }, text: '。' },
@@ -196,11 +215,13 @@ describe('groupTokensIntoPhrases', () => {
 
   it('accepts unsorted silence mids and still splits correctly', () => {
     const tokens: WhisperSegment[] = [
-      { offsets: { from: 0, to: 1000 }, text: 'A' },
-      { offsets: { from: 1000, to: 3000 }, text: 'B' },
-      { offsets: { from: 3000, to: 5000 }, text: 'C' },
+      { offsets: { from: 0, to: 500 }, text: 'A' },
+      { offsets: { from: 500, to: 2000 }, text: 'B' },
+      { offsets: { from: 2000, to: 2500 }, text: 'C' },
+      { offsets: { from: 2500, to: 4000 }, text: 'D' },
+      { offsets: { from: 4000, to: 4500 }, text: 'E' },
     ];
-    const out = groupTokensIntoPhrases(tokens, [4000, 2000]);
-    expect(out.map((p) => p.text)).toEqual(['A', 'B', 'C']);
+    const out = groupTokensIntoPhrases(tokens, [3000, 1200]);
+    expect(out.map((p) => p.text)).toEqual(['AB', 'CD', 'E']);
   });
 });

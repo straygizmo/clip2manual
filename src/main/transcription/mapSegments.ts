@@ -17,71 +17,93 @@ const PHRASE_DELIMITERS = /^[、。，．！？!?,.…]+$/;
  *  自然な発話間ポーズで分割する fallback。 */
 export const PHRASE_GAP_MS = 700;
 
+/** 単一トークンの duration がこの値を超えると「無音吸収トークン」候補とみなす（ミリ秒）。
+ *  普通に発声した一音節は通常 1000ms 未満で、それを超えるのは silence が timestamp に
+ *  吸収された場合がほとんど。 */
+const LONG_TOKEN_MS = 1000;
+
+/**
+ * 句境界として「flush-after」すべき content-index の集合を計算する。
+ *
+ * 各無音 mid について:
+ *  - mid が content[idx] の (from, to) の内側に入る → そのトークン + そこから前方に
+ *    連続する LONG トークン群（連続する無音吸収帯）の **最後** で flush する。
+ *    whisper は「音 → 無音」の順に timestamp を延ばす傾向があるので、
+ *    クラスタ末尾で切ると単語の途中で切れにくい。
+ *  - mid がどのトークンにも入らない（トークン間ギャップ）→ mid 直前の最後の
+ *    トークンの後で flush する。
+ */
+function computeSilenceSplits(content: WhisperSegment[], mids: number[]): Set<number> {
+  const out = new Set<number>();
+  for (const mid of [...mids].sort((a, b) => a - b)) {
+    const idx = content.findIndex(
+      (t) => t.offsets.from <= mid && mid < t.offsets.to,
+    );
+    if (idx >= 0) {
+      let end = idx;
+      while (
+        end + 1 < content.length &&
+        content[end + 1].offsets.to - content[end + 1].offsets.from > LONG_TOKEN_MS
+      ) {
+        end++;
+      }
+      out.add(end);
+    } else {
+      const next = content.findIndex((t) => t.offsets.from > mid);
+      if (next > 0) out.add(next - 1);
+    }
+  }
+  return out;
+}
+
 /**
  * whisper --max-len 1 のトークン列を、句読点 / 無音区間 / 隣接トークン間ギャップで
  * 区切った「句」単位のセグメントに束ねる。区切りトークン自体はテキストに含めず、
  * 各句は最初の内容トークンの from から最後の内容トークンの to までを範囲とする。
  *
- * silenceMidsMs: ffmpeg silencedetect で得た無音区間の中央時刻（ミリ秒、昇順想定）。
+ * silenceMidsMs: ffmpeg silencedetect で得た無音区間の中央時刻（ミリ秒）。
  * whisper は無音をトークン境界として落とさず、隣接する内容トークンの duration に
- * 吸収させてしまうことがある。そのため「あるトークンの (from, to) の内側に無音 mid が
- * 入っている」場合、そのトークンを無音吸収トークンとみなし、トークンの直前で句を切る。
+ * 吸収させてしまう。computeSilenceSplits で「無音吸収トークン群」の末尾を求め、
+ * そのトークンの後で句を切る。
  */
 export function groupTokensIntoPhrases(
   tokens: WhisperSegment[],
   silenceMidsMs: number[] = [],
 ): WhisperSegment[] {
-  const sortedMids = [...silenceMidsMs].sort((a, b) => a - b);
-  let midIdx = 0;
+  const content = tokens.filter((t) => t.text.trim() !== '');
+  const splitAfter = computeSilenceSplits(content, silenceMidsMs);
 
   const phrases: WhisperSegment[] = [];
   let text = '';
   let from = 0;
   let to = 0;
+  let prevTo = -1;
 
   const flush = () => {
     if (text !== '') phrases.push({ offsets: { from, to }, text });
     text = '';
   };
 
-  for (const tok of tokens) {
+  content.forEach((tok, i) => {
     const t = tok.text.trim();
-    if (t === '') continue; // 空トークン（先頭の無音など）は無視
 
-    // (1) このトークンの開始までに過ぎた無音 mid は、ここで句境界として消化する
-    let consumedMidBefore = false;
-    while (midIdx < sortedMids.length && sortedMids[midIdx] < tok.offsets.from) {
-      consumedMidBefore = true;
-      midIdx++;
-    }
-    if (consumedMidBefore && text !== '') flush();
-
-    // (2) このトークンの (from, to) 内に無音 mid があれば、トークンが無音を吸収している
-    //     とみなして、トークンの「前」で flush する（無音は前句末尾に属する扱い）。
-    let consumedMidInside = false;
-    while (
-      midIdx < sortedMids.length &&
-      sortedMids[midIdx] >= tok.offsets.from &&
-      sortedMids[midIdx] < tok.offsets.to
-    ) {
-      consumedMidInside = true;
-      midIdx++;
-    }
-    if (consumedMidInside && text !== '') flush();
-
-    // (3) 隣接トークン間のギャップが PHRASE_GAP_MS 以上なら fallback で flush
-    if (text !== '' && tok.offsets.from - to >= PHRASE_GAP_MS) {
+    // (1) 隣接トークン間のギャップが PHRASE_GAP_MS 以上なら fallback で flush
+    if (text !== '' && prevTo >= 0 && tok.offsets.from - prevTo >= PHRASE_GAP_MS) {
       flush();
     }
 
     if (PHRASE_DELIMITERS.test(t)) {
       flush();
-      continue;
+    } else {
+      if (text === '') from = tok.offsets.from;
+      text += t;
+      to = tok.offsets.to;
     }
-    if (text === '') from = tok.offsets.from;
-    text += t;
-    to = tok.offsets.to;
-  }
+    prevTo = tok.offsets.to;
+
+    // (2) 無音 mid からの "split-after" hint
+    if (splitAfter.has(i)) flush();
+  });
   flush();
   return phrases;
 }
