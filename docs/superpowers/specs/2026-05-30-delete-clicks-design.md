@@ -61,7 +61,7 @@ const [selectedClick, setSelectedClick] = useState<SelectedClick | null>(null);
 onDeleteClick?: (segmentId: string, t: number, x: number, y: number) => void;
 ```
 
-`Esc` と `Delete/Backspace` のキー処理は Timeline 内の `useEffect` で `window.addEventListener('keydown', ...)` に登録、`event.target` が `INPUT`/`TEXTAREA`/`SELECT` の場合は無視。
+`Esc` と `Delete/Backspace` のキー処理は Timeline が既に持つ `handleKeyDown`（`<div tabIndex={0} onKeyDown={handleKeyDown}>` 上の `+/-/0` ズーム実装と同じ場所）に追加する。Timeline がフォーカスを持っている時のみ反応するため、Inspector のテキスト編集中に誤発火する余地がない。
 
 ## 6. 純関数化とテスト
 
@@ -105,6 +105,7 @@ export function deleteClick(segments: Segment[], key: ClickKey): Segment[];
 
 - `Timeline.tsx` にキーボードハンドラを足すので、エディタ全体の他のショートカット（タイムラインズーム `+`/`-`/`0`、Ctrl+wheel ズームなど）と衝突しないかを確認。`Delete`/`Backspace`/`Esc` は他で未使用。
 - `Backspace` をハンドルすると、Inspector のテキストエリア外フォーカスでブラウザ既定の「履歴戻る」が動く環境があるが、Electron ではアプリ用 BrowserWindow なので影響なし。`preventDefault()` を念のため付けて防御。
+- ◆ をシングルクリックで選択しつつダブルクリックで分割を維持するため、◆ の `onClick` は `e.stopPropagation()` で親行のシークを止めるが、`onDoubleClick` は従来通り発火させる。React の `onClick` は dblclick 時に 2 度発火するが、その後 `onDoubleClick` ハンドラ内の `onSplitAtClick` で segments が変わると `useEffect(() => setSelectedClick(null), [segments])` が自動的に選択を解除するので、ステートが残ってもダブルクリック直後にクリアされる。
 
 ## 11. YAGNI で意図的に外したもの
 
