@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type Segment, type SpeakerOption } from '../../shared/types';
 import { useEditor } from '../state/editorStore';
-import { toggleEnabled, mergeWithNext, splitAt } from '../state/segmentOps';
 import { projectAssetUrl } from './assetUrl';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Scissors, SplitSquareHorizontal, ArrowDownToLine, RotateCcw } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 
 function fmt(t: number): string {
   const m = Math.floor(t / 60);
@@ -71,21 +70,6 @@ export function Inspector({ segment, index, speakers, projectDir, ttsNonce, busy
     const segments = state.project.segments.map((s) => (s.id === segment.id ? { ...s, voice } : s));
     dispatch({ type: 'SET_SEGMENT_VOICE', id: segment.id, voice });
     void persist(segments);
-  };
-
-  const segments = state.project?.segments ?? [];
-  const isLast = segments.length > 0 && segments[segments.length - 1].id === segment.id;
-  const canSplit = state.currentTime > segment.videoStart && state.currentTime < segment.videoEnd;
-
-  const applyOps = (next: Segment[], selectId: string) => {
-    dispatch({ type: 'SET_SEGMENTS', segments: next, selectId });
-    void persist(next); // persist は失敗時に saveError を立てる（テキスト編集と同じ扱い）
-  };
-  const onToggleCut = () => applyOps(toggleEnabled(segments, segment.id), segment.id);
-  const onMerge = () => applyOps(mergeWithNext(segments, segment.id), segment.id);
-  const onSplit = () => {
-    const newId = `seg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    applyOps(splitAt(segments, segment.id, state.currentTime, newId), newId);
   };
 
   const speakerLabel = speakers.find((s) => s.speaker === segment.voice.speaker)?.label;
@@ -172,20 +156,8 @@ export function Inspector({ segment, index, speakers, projectDir, ttsNonce, busy
         </div>
       )}
 
-      <Separator className="my-3" />
-      <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" onClick={onToggleCut} disabled={busy}>
-          <Scissors className="size-4" />{segment.enabled ? t('inspector.cut') : t('inspector.enable')}
-        </Button>
-        <Button variant="outline" size="sm" onClick={onSplit} disabled={!canSplit || busy}>
-          <SplitSquareHorizontal className="size-4" />{t('inspector.splitAtPlayhead')}
-        </Button>
-        <Button variant="outline" size="sm" onClick={onMerge} disabled={isLast || busy}>
-          <ArrowDownToLine className="size-4" />{t('inspector.mergeNext')}
-        </Button>
-      </div>
       {!segment.enabled && (
-        <div className="mt-1.5 text-xs text-amber-500">{t('inspector.cutBadge')}</div>
+        <div className="mt-2 text-xs text-amber-500">{t('inspector.cutBadge')}</div>
       )}
       <div className="mt-2 text-xs text-muted-foreground">{t('inspector.clickCount', { count: segment.clicks.length })}</div>
     </div>

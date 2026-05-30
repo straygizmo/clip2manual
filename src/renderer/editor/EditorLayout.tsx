@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useEditor } from '../state/editorStore';
-import { PreviewPlayer } from './PreviewPlayer';
+import { PreviewPlayer, type PreviewPlayerHandle } from './PreviewPlayer';
 import { Timeline } from './Timeline';
+import { TimelineToolbar } from './TimelineToolbar';
 import { Inspector } from './Inspector';
 import { decodeToWav } from '../audio/decodeToWav';
 import { projectAssetUrl } from './assetUrl';
-import { type SpeakerOption } from '../../shared/types';
-import { splitAt, resizeBoundary } from '../state/segmentOps';
+import { type Segment, type SpeakerOption } from '../../shared/types';
+import { splitAt, resizeBoundary, toggleEnabled, mergeWithNext } from '../state/segmentOps';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
@@ -21,6 +22,7 @@ export function EditorLayout() {
   const { state, dispatch } = useEditor();
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const previewRef = useRef<PreviewPlayerHandle>(null);
   const [duration, setDuration] = useState(0);
   const [speakers, setSpeakers] = useState<SpeakerOption[]>([]);
   const speakersLoading = useRef(false);
@@ -31,6 +33,9 @@ export function EditorLayout() {
   const [playingId, setPlayingId] = useState<string | null>(null);
   const handleActiveSegment = useCallback((id: string | null) => setPlayingId(id), []);
   const [playing, setPlaying] = useState(false);
+  const [previewMode, setPreviewMode] = useState<'original' | 'tts'>('original');
+  const [ttsPreviewLoading, setTtsPreviewLoading] = useState(false);
+  const [missingClips, setMissingClips] = useState(false);
   const [slotHint, setSlotHint] = useState<{ slotId: string; offsetInSlot: number; visibleDuration: number } | null>(null);
   const onSlotProgress = useCallback((h: { slotId: string; offsetInSlot: number; visibleDuration: number } | null) => setSlotHint(h), []);
   const [requestedMode, setRequestedMode] = useState<{ mode: 'original' | 'tts' } | null>(null);
@@ -80,6 +85,20 @@ export function EditorLayout() {
     if (next === segments) return; // no-op（c.t == videoStart 等の境界）
     dispatch({ type: 'SET_SEGMENTS', segments: next, selectId: newId });
     void window.api.updateSegments(next);
+  };
+
+  const applySegments = (next: Segment[], selectId: string) => {
+    dispatch({ type: 'SET_SEGMENTS', segments: next, selectId });
+    void window.api.updateSegments(next);
+  };
+
+  const onToggleCut = (id: string) => applySegments(toggleEnabled(segments, id), id);
+  const onMergeNext = (id: string) => applySegments(mergeWithNext(segments, id), id);
+  const onSplitAtPlayhead = (id: string) => {
+    const newId = `seg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const next = splitAt(segments, id, state.currentTime, newId);
+    if (next === segments) return;
+    applySegments(next, newId);
   };
 
   async function runTranscription() {
@@ -281,6 +300,7 @@ export function EditorLayout() {
       {/* 中央＝プレビュー / 右＝インスペクタ */}
       <div className="grid min-h-0 grid-cols-[1fr_320px]">
         <PreviewPlayer
+          ref={previewRef}
           videoRef={videoRef}
           audioRef={audioRef}
           videoUrl={projectAssetUrl('assets/raw.webm', state.projectDir ?? '')}
@@ -291,10 +311,9 @@ export function EditorLayout() {
           onDuration={setDuration}
           onActiveSegment={handleActiveSegment}
           onPlayingChange={setPlaying}
-          exportRunning={exportState.status === 'running'}
-          exportPercent={exportState.percent}
-          onExport={doExport}
-          onCancelExport={() => window.api.cancelExport()}
+          onModeChange={setPreviewMode}
+          onTtsLoadingChange={setTtsPreviewLoading}
+          onMissingChange={setMissingClips}
           requestedMode={requestedMode}
           subtitleText={subtitleText}
           onSlotProgress={onSlotProgress}
@@ -313,19 +332,40 @@ export function EditorLayout() {
         </div>
       </div>
 
-      {/* 下＝タイムライン */}
-      <Timeline
-        duration={duration}
-        currentTime={state.currentTime}
-        segments={segments}
-        selectedId={state.selectedSegmentId}
-        playingId={playingId}
-        playing={playing}
-        onSelect={(id) => dispatch({ type: 'SELECT_SEGMENT', id })}
-        onSeek={seek}
-        onSplitAtClick={onSplitAtClick}
-        onResizeCommit={onResizeCommit}
-      />
+      {/* 下＝タイムライン（ツールバー＋本体） */}
+      <div className="flex flex-col">
+        <TimelineToolbar
+          playing={playing}
+          mode={previewMode}
+          ttsLoading={ttsPreviewLoading}
+          missingClips={missingClips}
+          onTogglePlay={() => previewRef.current?.togglePlay()}
+          onSwitchMode={(next) => { void previewRef.current?.switchMode(next); }}
+          segments={segments}
+          selected={selected}
+          currentTime={state.currentTime}
+          ttsBusy={ttsBusy}
+          onToggleCut={onToggleCut}
+          onSplitAtPlayhead={onSplitAtPlayhead}
+          onMergeNext={onMergeNext}
+          exportRunning={exportState.status === 'running'}
+          exportPercent={exportState.percent}
+          onExport={doExport}
+          onCancelExport={() => window.api.cancelExport()}
+        />
+        <Timeline
+          duration={duration}
+          currentTime={state.currentTime}
+          segments={segments}
+          selectedId={state.selectedSegmentId}
+          playingId={playingId}
+          playing={playing}
+          onSelect={(id) => dispatch({ type: 'SELECT_SEGMENT', id })}
+          onSeek={seek}
+          onSplitAtClick={onSplitAtClick}
+          onResizeCommit={onResizeCommit}
+        />
+      </div>
     </div>
   );
 }

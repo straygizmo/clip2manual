@@ -1,10 +1,12 @@
-import { useRef, useState, useEffect, type RefObject } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useRef, useState, useEffect, useImperativeHandle, forwardRef, type RefObject } from 'react';
 import { type Segment } from '../../shared/types';
 import { TtsPreviewController } from '../audio/ttsPreview';
 import { RippleCanvas } from './RippleCanvas';
-import { Button } from '@/components/ui/button';
-import { Play, Pause, Download, X } from 'lucide-react';
+
+export interface PreviewPlayerHandle {
+  togglePlay: () => void;
+  switchMode: (next: 'original' | 'tts') => Promise<void>;
+}
 
 interface Props {
   videoRef: RefObject<HTMLVideoElement>;
@@ -16,10 +18,6 @@ interface Props {
   onTime: (t: number) => void;
   onDuration: (d: number) => void;
   onActiveSegment: (id: string | null) => void;
-  exportRunning: boolean;
-  exportPercent: number;
-  onExport: () => void;
-  onCancelExport: () => void;
   /** Pass a fresh object to imperatively switch mode (e.g. on TTS generation start). */
   requestedMode?: { mode: 'original' | 'tts' } | null;
   /** 字幕表示テキスト。null/空文字で非表示。EditorLayout 側で pickSubtitle 結果が渡される。 */
@@ -28,18 +26,20 @@ interface Props {
   onSlotProgress: (hint: { slotId: string; offsetInSlot: number; visibleDuration: number } | null) => void;
   /** 再生状態が変化したら通知（Timeline の追尾再開エッジ判定用）。 */
   onPlayingChange?: (playing: boolean) => void;
+  onModeChange?: (mode: 'original' | 'tts') => void;
+  onTtsLoadingChange?: (loading: boolean) => void;
+  onMissingChange?: (missing: boolean) => void;
 }
 
 /**
  * 元音声モード: 映像(c2m:raw.webm)を主時計に narration を従わせて再生（従来どおり）。
  * TTSモード: TtsPreviewController が TTS を Web Audio でスケジュールし映像を駆動する。
  */
-export function PreviewPlayer({
+export const PreviewPlayer = forwardRef<PreviewPlayerHandle, Props>(function PreviewPlayer({
   videoRef, audioRef, videoUrl, audioUrl, segments, projectDir, onTime, onDuration, onActiveSegment,
-  exportRunning, exportPercent, onExport, onCancelExport, requestedMode, subtitleText, onSlotProgress,
-  onPlayingChange,
-}: Props) {
-  const { t } = useTranslation();
+  requestedMode, subtitleText, onSlotProgress,
+  onPlayingChange, onModeChange, onTtsLoadingChange, onMissingChange,
+}, ref) {
   const [playing, setPlaying] = useState(false);
   const [mode, setMode] = useState<'original' | 'tts'>('original');
   const [ttsLoading, setTtsLoading] = useState(false);
@@ -146,6 +146,8 @@ export function PreviewPlayer({
     setMode(next);
   };
 
+  useImperativeHandle(ref, () => ({ togglePlay, switchMode }), [mode, playing, segments, projectDir]);
+
   const switchModeRef = useRef(switchMode);
   switchModeRef.current = switchMode;
   useEffect(() => {
@@ -153,7 +155,13 @@ export function PreviewPlayer({
     void switchModeRef.current(requestedMode.mode);
   }, [requestedMode]);
 
-  const missing = mode === 'tts' && !ttsLoading && (controllerRef.current?.missingClips() ?? false);
+  useEffect(() => { onModeChange?.(mode); }, [mode, onModeChange]);
+  useEffect(() => { onTtsLoadingChange?.(ttsLoading); }, [ttsLoading, onTtsLoadingChange]);
+  useEffect(() => {
+    const m = mode === 'tts' && !ttsLoading && (controllerRef.current?.missingClips() ?? false);
+    onMissingChange?.(m);
+  }, [mode, ttsLoading, segments, onMissingChange]);
+
   const clicks = segments.flatMap((s) => s.clicks);
 
   return (
@@ -198,25 +206,6 @@ export function PreviewPlayer({
         </div>
         <audio ref={audioRef} src={audioUrl} />
       </div>
-      <div className="flex shrink-0 flex-nowrap items-center gap-3 overflow-x-auto bg-muted px-3 py-2 text-foreground">
-        <Button size="sm" className="shrink-0" onClick={togglePlay} disabled={ttsLoading}>{playing ? <Pause className="size-4" /> : <Play className="size-4" />}{playing ? t('preview.pause') : t('preview.play')}</Button>
-        <span className="shrink-0 text-xs text-muted-foreground">{t('preview.audioLabel')}</span>
-        <Button size="sm" className="shrink-0" variant={mode === 'original' ? 'default' : 'secondary'} onClick={() => void switchMode('original')} disabled={mode === 'original' || ttsLoading}>{t('preview.modeOriginal')}</Button>
-        <Button size="sm" className="shrink-0" variant={mode === 'tts' ? 'default' : 'secondary'} onClick={() => void switchMode('tts')} disabled={mode === 'tts' || ttsLoading}>{t('preview.modeTts')}</Button>
-        {ttsLoading && <span className="shrink-0 text-xs text-muted-foreground">{t('preview.ttsLoading')}</span>}
-        {missing && <span className="shrink-0 text-xs text-amber-500">{t('preview.missingTtsHint')}</span>}
-        <div className="ml-auto flex shrink-0 items-center gap-2">
-          {exportRunning && (
-            <Button variant="ghost" size="sm" onClick={onCancelExport}>
-              <X className="size-4" />{t('common.cancel')}
-            </Button>
-          )}
-          <Button size="sm" onClick={onExport} disabled={exportRunning}>
-            <Download className="size-4" />
-            {exportRunning ? t('preview.exporting', { percent: exportPercent }) : t('preview.export')}
-          </Button>
-        </div>
-      </div>
     </div>
   );
-}
+});
