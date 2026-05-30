@@ -17,8 +17,12 @@
     "recentEmpty": "No recordings yet.",
     "recentOpen": "Open",
     "recentDelete": "Delete",
-    "recentDeleteConfirm": "Move \"{{name}}\" to the OS trash?",
-    "recentDeleteFailed": "Delete failed: {{message}}"
+    "recentDeleteTitle": "Delete this recording?",
+    "recentDeleteConfirm": "\"{{name}}\" will be moved to the OS trash. You can restore it from there.",
+    "recentDeleteFailed": "Delete failed: {{message}}",
+    "recentRename": "Rename",
+    "recentRenameFailed": "Rename failed: {{message}}",
+    "cancel": "Cancel"
   },
   "deps": {
     "title": "Dependencies",

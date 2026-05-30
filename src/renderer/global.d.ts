@@ -29,6 +29,7 @@ declare global {
       openProject: (projectDir: string) => Promise<OpenedProject>;
       recentProjects: () => Promise<RecentProject[]>;
       trashProject: (projectDir: string) => Promise<{ ok: true }>;
+      renameProject: (projectDir: string, newName: string) => Promise<{ ok: true }>;
       updateSegments: (segments: Segment[]) => Promise<{ ok: true }>;
       readAsset: (rel: string) => Promise<ArrayBuffer>;
       writeAsset: (rel: string, data: ArrayBuffer) => Promise<{ ok: true }>;

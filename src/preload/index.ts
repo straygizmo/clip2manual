@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('api', {
   openProject: (projectDir: string) => ipcRenderer.invoke('project:open', projectDir),
   recentProjects: () => ipcRenderer.invoke('project:recent'),
   trashProject: (projectDir: string) => ipcRenderer.invoke('project:trash', projectDir),
+  renameProject: (projectDir: string, newName: string) => ipcRenderer.invoke('project:rename', projectDir, newName),
   updateSegments: (segments: Segment[]) => ipcRenderer.invoke('project:updateSegments', segments),
 
   readAsset: (rel: string) => ipcRenderer.invoke('asset:read', rel),

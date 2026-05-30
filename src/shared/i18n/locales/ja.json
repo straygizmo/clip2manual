@@ -17,8 +17,12 @@
     "recentEmpty": "まだ録画がありません。",
     "recentOpen": "開く",
     "recentDelete": "削除",
-    "recentDeleteConfirm": "「{{name}}」を OS のゴミ箱に移動しますか？",
-    "recentDeleteFailed": "削除に失敗しました: {{message}}"
+    "recentDeleteTitle": "録画を削除しますか？",
+    "recentDeleteConfirm": "「{{name}}」を OS のゴミ箱に移動します。OS のゴミ箱から復元できます。",
+    "recentDeleteFailed": "削除に失敗しました: {{message}}",
+    "recentRename": "名前を変更",
+    "recentRenameFailed": "名前変更に失敗しました: {{message}}",
+    "cancel": "キャンセル"
   },
   "deps": {
     "title": "依存関係",
