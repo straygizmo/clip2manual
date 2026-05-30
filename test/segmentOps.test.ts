@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toggleEnabled, mergeWithNext, splitAt, resizeBoundary, MIN_SEGMENT_DURATION } from '../src/renderer/state/segmentOps';
+import { toggleEnabled, mergeWithNext, splitAt, resizeBoundary, deleteClick, MIN_SEGMENT_DURATION } from '../src/renderer/state/segmentOps';
 import { type Segment, type ClickEvent } from '../src/shared/types';
 
 function click(t: number): ClickEvent { return { x: 1, y: 1, t, button: 1 }; }
@@ -139,5 +139,35 @@ describe('resizeBoundary', () => {
   it('returns the same array when primaryId is not found', () => {
     const input = segs();
     expect(resizeBoundary(input, 'nope', 'right', 6, 10)).toBe(input);
+  });
+});
+
+describe('deleteClick', () => {
+  it('removes the matching click from the target segment only', () => {
+    const a = seg('seg-001', 0, 2, { clicks: [click(0.5), click(1.0)] });
+    const b = seg('seg-002', 2, 5, { clicks: [click(3.0)] });
+    const r = deleteClick([a, b], { segmentId: 'seg-001', t: 0.5, x: 1, y: 1 });
+    expect(r[0].clicks).toHaveLength(1);
+    expect(r[0].clicks[0].t).toBe(1.0);
+    expect(r[1].clicks).toHaveLength(1);
+  });
+
+  it('returns the same reference when segmentId does not exist', () => {
+    const segs = [seg('seg-001', 0, 2, { clicks: [click(0.5)] })];
+    const r = deleteClick(segs, { segmentId: 'seg-XXX', t: 0.5, x: 1, y: 1 });
+    expect(r).toBe(segs);
+  });
+
+  it('returns the same reference when no click matches the key', () => {
+    const segs = [seg('seg-001', 0, 2, { clicks: [click(0.5)] })];
+    const r = deleteClick(segs, { segmentId: 'seg-001', t: 9.9, x: 1, y: 1 });
+    expect(r).toBe(segs);
+  });
+
+  it('does not modify other segments', () => {
+    const a = seg('seg-001', 0, 2, { clicks: [click(0.5)] });
+    const b = seg('seg-002', 2, 5, { clicks: [click(3.0)] });
+    const r = deleteClick([a, b], { segmentId: 'seg-001', t: 0.5, x: 1, y: 1 });
+    expect(r[1]).toBe(b);
   });
 });
