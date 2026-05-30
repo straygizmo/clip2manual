@@ -1,7 +1,6 @@
-import { type PreviewSlot } from '../../shared/previewTimeline';
 import { tMain } from '../i18n';
 
-/** 全中間クリップを揃えるための共通エンコード設定。 */
+/** 全中間/最終出力で揃える共通エンコード設定。 */
 const VIDEO_ENCODE = ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p'];
 const AUDIO_RATE = '48000';
 
@@ -48,65 +47,72 @@ export function parseResolution(stdout: string): { width: number; height: number
   return { width, height };
 }
 
-/** raw 映像のスロット区間を切り出し、末尾フレームを slotDuration までフリーズして均一H.264で出力。
- *  ripple/subtitle 指定時は overlay フィルタチェーンに乗せる。 */
-export function segmentVideoArgs(input: {
+/**
+ * raw.webm 全長をベースに、リップル PNG シーケンスと字幕 PNG 群を時刻条件付きで重ねて
+ * 一発で動画を生成する。
+ *
+ * 入力:
+ *   - [0]: raw.webm（VFR）。`fps` フィルタで CFR 化してオーバーレイ整合をとる
+ *   - [1..]: 任意で ripple PNG シーケンス（CFR）と subtitle PNG 群（-loop 1）
+ *
+ * 重要: ループ入力（-loop 1）は無限長なので、それを使う overlay は必ず `shortest=1` を付けて
+ * チェーン中間出力が無限化しないようにする。ベース [0:v] は -t で有限化する。
+ *
+ * subtitle overlay は `enable='between(t,start,end)'` で各 span の有効時刻を指定する。
+ */
+export function globalVideoArgs(input: {
   rawPath: string;
-  slot: PreviewSlot;
-  outPath: string;
+  totalDuration: number;
   fps: number;
+  outPath: string;
   ripple?: { pattern: string; fps: number };
-  subtitle?: { pngPath: string; durationSec: number };
+  subtitles?: ReadonlyArray<{ pngPath: string; startSec: number; endSec: number }>;
 }): string[] {
-  const { rawPath, slot, outPath, fps, ripple, subtitle } = input;
-  const videoSpan = Math.max(0, slot.videoEnd - slot.videoStart);
-  const freeze = Math.max(0, slot.slotDuration - videoSpan);
-  const tpadChain = `tpad=stop_mode=clone:stop_duration=${freeze},fps=${fps},setpts=PTS-STARTPTS`;
+  const { rawPath, totalDuration, fps, outPath, ripple, subtitles } = input;
+  const subs = subtitles ?? [];
+  const hasOverlay = !!ripple || subs.length > 0;
 
-  if (!ripple && !subtitle) {
+  if (!hasOverlay) {
     return [
       '-y',
-      '-ss', String(slot.videoStart),
-      '-t', String(videoSpan),
+      '-t', String(totalDuration),
       '-i', rawPath,
-      '-vf', tpadChain,
+      '-vf', `fps=${fps},setpts=PTS-STARTPTS`,
       '-an',
       ...VIDEO_ENCODE,
       outPath,
     ];
   }
 
-  // filter_complex モード
-  const inputs: string[] = [
-    '-ss', String(slot.videoStart),
-    '-t', String(videoSpan),
-    '-i', rawPath,
-  ];
+  const inputs: string[] = ['-t', String(totalDuration), '-i', rawPath];
   let nextIdx = 1;
   let rippleIdx: number | null = null;
-  let subtitleIdx: number | null = null;
   if (ripple) {
     inputs.push('-framerate', String(ripple.fps), '-i', ripple.pattern);
     rippleIdx = nextIdx++;
   }
-  if (subtitle) {
-    inputs.push('-loop', '1', '-i', subtitle.pngPath);
-    subtitleIdx = nextIdx++;
+  const subIndices: Array<{ idx: number; startSec: number; endSec: number }> = [];
+  for (const sub of subs) {
+    inputs.push('-loop', '1', '-i', sub.pngPath);
+    subIndices.push({ idx: nextIdx++, startSec: sub.startSec, endSec: sub.endSec });
   }
 
-  const chain: string[] = [`[0:v] ${tpadChain} [vbase]`];
+  const chain: string[] = [`[0:v] fps=${fps},setpts=PTS-STARTPTS [vbase]`];
   let lastLabel = 'vbase';
   if (rippleIdx !== null) {
     chain.push(`[${lastLabel}][${rippleIdx}:v] overlay=shortest=1 [vrip]`);
     lastLabel = 'vrip';
   }
-  if (subtitleIdx !== null) {
-    const dur = subtitle!.durationSec.toFixed(3);
-    chain.push(`[${lastLabel}][${subtitleIdx}:v] overlay=0:0:enable='lt(t,${dur})' [vsub]`);
-    lastLabel = 'vsub';
+  for (let i = 0; i < subIndices.length; i++) {
+    const { idx, startSec, endSec } = subIndices[i];
+    const start = startSec.toFixed(3);
+    const end = endSec.toFixed(3);
+    const outLabel = `vsub${i}`;
+    chain.push(`[${lastLabel}][${idx}:v] overlay=0:0:shortest=1:enable='between(t,${start},${end})' [${outLabel}]`);
+    lastLabel = outLabel;
   }
-  // 最終出力ラベルは [vout] に統一する（既存テストと一貫）
-  chain[chain.length - 1] = chain[chain.length - 1].replace(/\[v(rip|sub)\]$/, '[vout]');
+  // 最終ラベルは [vout] に統一
+  chain[chain.length - 1] = chain[chain.length - 1].replace(/\[v[a-z0-9]+\]$/, '[vout]');
 
   return [
     '-y',
@@ -114,37 +120,60 @@ export function segmentVideoArgs(input: {
     '-filter_complex', chain.join('; '),
     '-map', '[vout]',
     '-an',
+    '-t', String(totalDuration),
     ...VIDEO_ENCODE,
     outPath,
   ];
 }
 
-/** スロットの音声 = TTSクリップ→無音 pad で slotDuration、無ければ slotDuration の無音。均一PCM。 */
-export function segmentAudioArgs(input: { clipPath: string | null; slotDuration: number; outPath: string }): string[] {
-  const { clipPath, slotDuration, outPath } = input;
-  if (clipPath) {
+/**
+ * 無音ベース + 各 TTS クリップを adelay で時刻シフトして amix する。
+ * `normalize=0` を付けることで各 TTS は原音量のまま（amix の自動正規化で小さくしない）。
+ * 出力長は `-t totalDuration` で raw.webm 長にクランプする（TTS が末尾を超えても切り捨て）。
+ */
+export function globalAudioArgs(input: {
+  totalDuration: number;
+  outPath: string;
+  clips: ReadonlyArray<{ delaySec: number; pathAbs: string }>;
+}): string[] {
+  const { totalDuration, outPath, clips } = input;
+  if (clips.length === 0) {
     return [
       '-y',
-      '-i', clipPath,
-      '-af', 'apad',
-      '-t', String(slotDuration),
-      '-c:a', 'pcm_s16le', '-ar', AUDIO_RATE, '-ac', '2',
+      '-f', 'lavfi',
+      '-i', `anullsrc=channel_layout=stereo:sample_rate=${AUDIO_RATE}`,
+      '-t', String(totalDuration),
+      '-c:a', 'pcm_s16le',
       outPath,
     ];
   }
-  return [
-    '-y',
+  const inputs: string[] = [
     '-f', 'lavfi',
     '-i', `anullsrc=channel_layout=stereo:sample_rate=${AUDIO_RATE}`,
-    '-t', String(slotDuration),
-    '-c:a', 'pcm_s16le',
+  ];
+  for (const c of clips) inputs.push('-i', c.pathAbs);
+
+  const chain: string[] = [];
+  const mixLabels: string[] = ['[0:a]'];
+  for (let i = 0; i < clips.length; i++) {
+    const delayMs = Math.max(0, Math.round(clips[i].delaySec * 1000));
+    const outLabel = `a${i}`;
+    chain.push(
+      `[${i + 1}:a] aresample=${AUDIO_RATE},aformat=sample_fmts=s16:channel_layouts=stereo,adelay=${delayMs}|${delayMs} [${outLabel}]`,
+    );
+    mixLabels.push(`[${outLabel}]`);
+  }
+  chain.push(`${mixLabels.join('')} amix=inputs=${mixLabels.length}:normalize=0:duration=longest [aout]`);
+
+  return [
+    '-y',
+    ...inputs,
+    '-filter_complex', chain.join('; '),
+    '-map', '[aout]',
+    '-t', String(totalDuration),
+    '-c:a', 'pcm_s16le', '-ar', AUDIO_RATE, '-ac', '2',
     outPath,
   ];
-}
-
-/** concat デマルチプレクサ（同一パラメータの中間クリップをストリームコピーで連結）。 */
-export function concatArgs(input: { listFile: string; outPath: string }): string[] {
-  return ['-y', '-f', 'concat', '-safe', '0', '-i', input.listFile, '-c', 'copy', input.outPath];
 }
 
 /** 映像＋音声を多重化し、メタデータ comment（クレジット）を付けて MP4 出力。 */
