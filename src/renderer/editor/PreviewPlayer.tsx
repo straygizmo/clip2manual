@@ -164,6 +164,21 @@ export const PreviewPlayer = forwardRef<PreviewPlayerHandle, Props>(function Pre
     void switchModeRef.current(requestedMode.mode);
   }, [requestedMode]);
 
+  // TTS スロットに影響する segment 属性（境界・enabled・ttsAudio）が変わったら、
+  // コントローラを reload してスロットと buffers を最新化する。controller の
+  // loadGen により先行 load との race は無効化されるので安全。playing 中は
+  // 中断しないよう skip（次回 pause / play で追従する）。
+  const ttsRelevantSig = segments
+    .map((s) => `${s.id}:${s.videoStart}:${s.videoEnd}:${s.enabled !== false ? 1 : 0}:${s.ttsAudio ?? ''}`)
+    .join('|');
+  useEffect(() => {
+    if (mode !== 'tts') return;
+    if (playing) return;
+    void controllerRef.current?.load(segments, projectDir);
+    // segments は ttsRelevantSig 経由でだけ依存する（テキスト編集等で発火しないため）
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ttsRelevantSig, mode, projectDir]);
+
   useEffect(() => { onModeChange?.(mode); }, [mode, onModeChange]);
   useEffect(() => { onTtsLoadingChange?.(ttsLoading); }, [ttsLoading, onTtsLoadingChange]);
   useEffect(() => {
