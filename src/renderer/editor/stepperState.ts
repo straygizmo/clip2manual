@@ -15,7 +15,7 @@ export function deriveStepStatuses(input: StepInputs): StepStatuses {
   const hasSegments = segments.length > 0;
   const someHasAudio = segments.some((s) => !!s.ttsAudio);
   const enabled = segments.filter((s) => s.enabled !== false);
-  const allEnabledHaveAudio = hasSegments && enabled.length > 0 && enabled.every((s) => !!s.ttsAudio);
+  const allEnabledHaveAudio = enabled.length > 0 && enabled.every((s) => !!s.ttsAudio);
 
   const s1: StepStatus =
     transcription.status === 'running' ? 'running' :

@@ -35,13 +35,9 @@
   },
   "editor": {
     "home": "Home",
-    "transcribe": "Transcribe",
-    "transcribeRunning": "Transcribing… {{percent}}%",
     "transcribeFailed": "Transcription failed: {{message}}",
     "defaultVoiceLabel": "Default voice",
     "applyDefaultToAll": "Apply to all segments",
-    "generateAll": "Generate all",
-    "generating": "Generating… {{percent}}%",
     "engineStartHint": "(The engine takes a moment to start the first time.)",
     "ttsFailed": "TTS generation failed: {{message}}",
     "exportSuccess": "Export complete",
@@ -65,8 +61,7 @@
     "step3DoneHint": "✓ Audio generated for all segments.",
     "step4Run": "Export to MP4",
     "step4RunningHint": "{{percent}}% in progress…",
-    "step4DoneHint": "✓ Export complete.",
-    "lockedHint": "Complete the previous step first."
+    "step4DoneHint": "✓ Export complete."
   },
   "inspector": {
     "selectPrompt": "Select a segment",
@@ -107,9 +102,7 @@
     "modeOriginal": "Original",
     "modeTts": "TTS",
     "ttsLoading": "Loading TTS…",
-    "missingTtsHint": "Segments without TTS will play silently",
-    "export": "Export",
-    "exporting": "Exporting… {{percent}}%"
+    "missingTtsHint": "Segments without TTS will play silently"
   },
   "dialog": {
     "mp4Filter": "MP4 video"

@@ -35,13 +35,9 @@
   },
   "editor": {
     "home": "ホーム",
-    "transcribe": "文字起こし",
-    "transcribeRunning": "文字起こし中… {{percent}}%",
     "transcribeFailed": "文字起こしに失敗しました: {{message}}",
     "defaultVoiceLabel": "既定の声",
     "applyDefaultToAll": "全セグメントに適用",
-    "generateAll": "全セグメント生成",
-    "generating": "生成中… {{percent}}%",
     "engineStartHint": "（初回はエンジン起動に時間がかかります）",
     "ttsFailed": "TTS生成に失敗しました: {{message}}",
     "exportSuccess": "書き出し完了",
@@ -65,8 +61,7 @@
     "step3DoneHint": "✓ 全セグメントの音声を生成しました。",
     "step4Run": "MP4 書き出し",
     "step4RunningHint": "{{percent}}% 進行中…",
-    "step4DoneHint": "✓ 書き出し完了。",
-    "lockedHint": "前のステップを完了させてください。"
+    "step4DoneHint": "✓ 書き出し完了。"
   },
   "inspector": {
     "selectPrompt": "セグメントを選択してください",
@@ -107,9 +102,7 @@
     "modeOriginal": "元音声",
     "modeTts": "TTS",
     "ttsLoading": "TTS読み込み中…",
-    "missingTtsHint": "TTS未生成のセグメントは無音で再生されます",
-    "export": "書き出し",
-    "exporting": "書き出し中… {{percent}}%"
+    "missingTtsHint": "TTS未生成のセグメントは無音で再生されます"
   },
   "dialog": {
     "mp4Filter": "MP4 動画"

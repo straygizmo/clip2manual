@@ -8,9 +8,7 @@ import { Slider } from '@/components/ui/slider';
 import {
   ArrowLeft, ArrowRight, Check, CircleAlert, CircleDot, Download, FileText, Lock, Mic, Subtitles, X,
 } from 'lucide-react';
-import {
-  activeStep, deriveStepStatuses, type StepStatus, type StepStatuses,
-} from './stepperState';
+import { activeStep, deriveStepStatuses, type StepStatus } from './stepperState';
 
 interface ExportLike { status: 'idle' | 'running' | 'done' | 'error'; percent: number; message: string }
 interface TxLike { status: 'idle' | 'running' | 'error'; error: string | null; percent: number }
