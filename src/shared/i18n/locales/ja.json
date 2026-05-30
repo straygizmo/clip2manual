@@ -91,7 +91,7 @@
     "cut": "カット",
     "enable": "有効化",
     "enabled": "有効",
-    "splitAtPlayhead": "分割（再生ヘッド位置）",
+    "splitAtPlayhead": "分割",
     "mergeNext": "次と結合",
     "cutBadge": "カット中（プレビュー/書き出しで除外）",
     "clickCount": "クリック {{count}} 件"

@@ -91,7 +91,7 @@
     "cut": "Cut",
     "enable": "Enable",
     "enabled": "Enabled",
-    "splitAtPlayhead": "Split (at playhead)",
+    "splitAtPlayhead": "Split",
     "mergeNext": "Merge with next",
     "cutBadge": "Cut (excluded from preview / export)",
     "clickCount": "Clicks: {{count}}"
