@@ -67,6 +67,8 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('setup:statusChanged', listener);
     return () => { ipcRenderer.removeListener('setup:statusChanged', listener); };
   },
+  listCaptureSources: () => ipcRenderer.invoke('capture:listSources'),
+  prepareCapture: (sourceId: string) => ipcRenderer.invoke('capture:prepare', sourceId),
   notifyRecordingStarted: () => ipcRenderer.invoke('window:recordingStarted'),
   notifyRecordingStopped: () => ipcRenderer.invoke('window:recordingStopped'),
   onWindowAutoStop: (cb: () => void) => {

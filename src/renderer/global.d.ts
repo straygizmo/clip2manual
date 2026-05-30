@@ -52,6 +52,14 @@ declare global {
       cancelSetup: () => Promise<{ ok: true }>;
       onSetupProgress: (cb: (p: { tool: string; percent: number }) => void) => () => void;
       onSetupStatusChanged: (cb: (s: { whisper: boolean; voicevox: boolean; ffmpeg: boolean }) => void) => () => void;
+      listCaptureSources: () => Promise<Array<{
+        id: string;
+        kind: 'screen' | 'window';
+        label: string;
+        displayId?: number;
+      }>>;
+      prepareCapture: (sourceId: string) =>
+        Promise<{ ok: true } | { ok: false; reason: string }>;
       notifyRecordingStarted: () => Promise<{ ok: boolean }>;
       notifyRecordingStopped: () => Promise<{ ok: boolean }>;
       onWindowAutoStop: (cb: () => void) => () => void;
