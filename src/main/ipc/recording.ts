@@ -9,6 +9,7 @@ import { type CaptureGeometry } from '../../shared/coordinateTransform';
 import { createProject, type ProjectSource } from '../../shared/types';
 import { resolveFfmpeg, FfmpegNotProvisionedError } from '../ffmpegPaths';
 import { runFfmpeg } from '../export/ffmpegRunner';
+import { takePendingCapture } from './captureSources';
 
 /**
  * MediaRecorder が出力する WebM には Cues（シーク用インデックス）が無いため、
@@ -66,18 +67,51 @@ export function registerRecordingIpc(): void {
     const rawEvents = clickHook ? clickHook.stop() : [];
     clickHook = null;
 
-    const display = screen.getPrimaryDisplay();
-    const sf = display.scaleFactor;
-    // uiohook は物理ピクセルで座標を返す前提。DIP の bounds をスケール倍して物理空間に合わせる。
-    // （実機での整合は手動検証で確認し、必要なら係数を調整する。）
-    const geometry: CaptureGeometry = {
-      displayOriginX: display.bounds.x * sf,
-      displayOriginY: display.bounds.y * sf,
-      displayWidth: display.bounds.width * sf,
-      displayHeight: display.bounds.height * sf,
-      videoWidth: payload.videoWidth,
-      videoHeight: payload.videoHeight,
-    };
+    const pending = takePendingCapture();
+
+    let captureKind: 'screen' | 'window';
+    let captureLabel: string | undefined;
+    let geometry: CaptureGeometry;
+    let displayInfo: { width: number; height: number; scaleFactor: number; originX: number; originY: number };
+
+    if (pending) {
+      // pending は OS 物理 px（screen は bounds*sf、window は GetWindowRect 直値）
+      geometry = {
+        displayOriginX: pending.bounds.x,
+        displayOriginY: pending.bounds.y,
+        displayWidth: pending.bounds.w,
+        displayHeight: pending.bounds.h,
+        videoWidth: payload.videoWidth,
+        videoHeight: payload.videoHeight,
+      };
+      captureKind = pending.kind;
+      captureLabel = pending.label;
+      displayInfo = {
+        width: payload.videoWidth,
+        height: payload.videoHeight,
+        scaleFactor: pending.bounds.scaleFactor,
+        originX: pending.bounds.x / pending.bounds.scaleFactor,
+        originY: pending.bounds.y / pending.bounds.scaleFactor,
+      };
+    } else {
+      // フォールバック（prepareCapture 未経由）: 従来通り primary display
+      const display = screen.getPrimaryDisplay();
+      const sf = display.scaleFactor;
+      geometry = {
+        displayOriginX: display.bounds.x * sf,
+        displayOriginY: display.bounds.y * sf,
+        displayWidth: display.bounds.width * sf,
+        displayHeight: display.bounds.height * sf,
+        videoWidth: payload.videoWidth,
+        videoHeight: payload.videoHeight,
+      };
+      captureKind = 'screen';
+      displayInfo = {
+        width: payload.videoWidth, height: payload.videoHeight,
+        scaleFactor: sf, originX: display.bounds.x, originY: display.bounds.y,
+      };
+    }
+
     const clicks = buildClickLog(rawEvents, t0Ms, geometry);
 
     const now = new Date();
@@ -87,14 +121,12 @@ export function registerRecordingIpc(): void {
       `_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
     const projectDir = path.join(app.getPath('videos'), 'clip2manual', `rec-${stamp}`);
     await initProjectDir(projectDir);
-    // NOTE: phase 1 transfers the whole recording through IPC as ArrayBuffers. For longer
-    // recordings, a later phase should hand off via a temp file path instead of copying bytes over IPC.
+
     const rawPath = assetPath(projectDir, 'assets/raw.webm');
     const narrationPath = assetPath(projectDir, 'assets/narration.webm');
     await fs.writeFile(rawPath, Buffer.from(payload.video));
     await fs.writeFile(narrationPath, Buffer.from(payload.audio));
     await fs.writeFile(assetPath(projectDir, 'assets/clicks.json'), JSON.stringify(clicks, null, 2));
-    // 任意位置シークを可能にするため Cues を付与（失敗は無視）
     await tryAddWebmCues(rawPath);
     await tryAddWebmCues(narrationPath);
 
@@ -102,13 +134,9 @@ export function registerRecordingIpc(): void {
       video: 'assets/raw.webm',
       narration: 'assets/narration.webm',
       clickLog: 'assets/clicks.json',
-      display: {
-        width: payload.videoWidth,
-        height: payload.videoHeight,
-        scaleFactor: sf,
-        originX: display.bounds.x,
-        originY: display.bounds.y,
-      },
+      display: displayInfo,
+      captureKind,
+      ...(captureLabel ? { captureLabel } : {}),
     };
     const project = createProject({ name: path.basename(projectDir), source });
     await saveProject(projectDir, project);
