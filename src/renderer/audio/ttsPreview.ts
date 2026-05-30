@@ -35,6 +35,7 @@ export class TtsPreviewController {
   private video: HTMLVideoElement | null = null;
   private activeId: string | null = null;
   private playGen = 0; // play() の await 中に pause/stop が来た場合の無効化用
+  private loadGen = 0; // load() の await 中に別の load が来た場合、古い側の書き込みを破棄するための世代カウンタ
 
   constructor(private cb: TtsPreviewCallbacks = {}) {}
 
@@ -43,11 +44,13 @@ export class TtsPreviewController {
     return this.ctx;
   }
 
-  /** 各セグメントの TTS をデコードしてタイムラインを構築する。 */
+  /** 各セグメントの TTS をデコードしてタイムラインを構築する。
+   *  並行 load が来た場合は新しい方が勝つ（古い load の途中結果は反映しない）。 */
   async load(segments: Segment[], projectDir: string): Promise<void> {
     this.stop();
+    const myGen = ++this.loadGen;
     const ctx = this.ensureCtx();
-    this.buffers.clear();
+    const nextBuffers = new Map<string, AudioBuffer>();
     const durations = new Map<string, number>();
     for (const seg of segments) {
       if (!seg.ttsAudio) continue;
@@ -55,12 +58,16 @@ export class TtsPreviewController {
         const url = `c2m://asset/${seg.ttsAudio}?p=${encodeURIComponent(projectDir)}`;
         const res = await fetch(url);
         const buf = await ctx.decodeAudioData(await res.arrayBuffer());
-        this.buffers.set(seg.id, buf);
+        if (myGen !== this.loadGen) return; // 後続の load に取って代わられた
+        nextBuffers.set(seg.id, buf);
         durations.set(seg.id, buf.duration);
       } catch {
+        if (myGen !== this.loadGen) return;
         // デコード失敗は無音区間として扱う（clipDuration=0）
       }
     }
+    if (myGen !== this.loadGen) return;
+    this.buffers = nextBuffers;
     this.slots = computePreviewTimeline(segments, durations);
     this.positionTime = 0;
   }
