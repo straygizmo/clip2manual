@@ -35,13 +35,9 @@
   },
   "editor": {
     "home": "Home",
-    "transcribe": "Transcribe",
-    "transcribeRunning": "Transcribing… {{percent}}%",
     "transcribeFailed": "Transcription failed: {{message}}",
     "defaultVoiceLabel": "Default voice",
     "applyDefaultToAll": "Apply to all segments",
-    "generateAll": "Generate all",
-    "generating": "Generating… {{percent}}%",
     "engineStartHint": "(The engine takes a moment to start the first time.)",
     "ttsFailed": "TTS generation failed: {{message}}",
     "exportSuccess": "Export complete",
@@ -49,6 +45,23 @@
     "exportDoneMessage": "Exported: {{path}} ({{credit}})",
     "showSubtitles": "Subtitles",
     "showSubtitlesTooltip": "Show subtitles in preview and exported MP4"
+  },
+  "stepper": {
+    "step1Label": "1. Transcribe",
+    "step2Label": "2. Edit",
+    "step3Label": "3. Generate voice",
+    "step4Label": "4. Export",
+    "step1Run": "Run transcription",
+    "step1RunningHint": "{{percent}}% in progress…",
+    "step1DoneHint": "✓ Done. Review and edit the segments on the timeline.",
+    "step1RestartNote": "To redo, create a new project from the home screen.",
+    "step2Hint": "Click a segment on the timeline to edit its text. When done, move on to 3. Generate voice.",
+    "step3Run": "Generate all segments",
+    "step3RunningHint": "{{percent}}% in progress…",
+    "step3DoneHint": "✓ Audio generated for all segments.",
+    "step4Run": "Export to MP4",
+    "step4RunningHint": "{{percent}}% in progress…",
+    "step4DoneHint": "✓ Export complete."
   },
   "inspector": {
     "selectPrompt": "Select a segment",
@@ -89,9 +102,7 @@
     "modeOriginal": "Original",
     "modeTts": "TTS",
     "ttsLoading": "Loading TTS…",
-    "missingTtsHint": "Segments without TTS will play silently",
-    "export": "Export",
-    "exporting": "Exporting… {{percent}}%"
+    "missingTtsHint": "Segments without TTS will play silently"
   },
   "dialog": {
     "mp4Filter": "MP4 video"

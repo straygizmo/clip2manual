@@ -35,13 +35,9 @@
   },
   "editor": {
     "home": "ホーム",
-    "transcribe": "文字起こし",
-    "transcribeRunning": "文字起こし中… {{percent}}%",
     "transcribeFailed": "文字起こしに失敗しました: {{message}}",
     "defaultVoiceLabel": "既定の声",
     "applyDefaultToAll": "全セグメントに適用",
-    "generateAll": "全セグメント生成",
-    "generating": "生成中… {{percent}}%",
     "engineStartHint": "（初回はエンジン起動に時間がかかります）",
     "ttsFailed": "TTS生成に失敗しました: {{message}}",
     "exportSuccess": "書き出し完了",
@@ -49,6 +45,23 @@
     "exportDoneMessage": "書き出し完了: {{path}}（{{credit}}）",
     "showSubtitles": "字幕",
     "showSubtitlesTooltip": "プレビューと書き出しMP4に字幕を表示します"
+  },
+  "stepper": {
+    "step1Label": "1. 文字起こし",
+    "step2Label": "2. 編集",
+    "step3Label": "3. 音声生成",
+    "step4Label": "4. 書き出し",
+    "step1Run": "文字起こしを実行",
+    "step1RunningHint": "{{percent}}% 進行中…",
+    "step1DoneHint": "✓ 完了しました。タイムラインで内容を確認・編集してください。",
+    "step1RestartNote": "やり直す場合は、ホームから新規プロジェクトを作成してください。",
+    "step2Hint": "タイムラインのセグメントをクリックしてテキストを編集できます。完了したら 3. 音声生成へ進んでください。",
+    "step3Run": "全セグメント生成",
+    "step3RunningHint": "{{percent}}% 進行中…",
+    "step3DoneHint": "✓ 全セグメントの音声を生成しました。",
+    "step4Run": "MP4 書き出し",
+    "step4RunningHint": "{{percent}}% 進行中…",
+    "step4DoneHint": "✓ 書き出し完了。"
   },
   "inspector": {
     "selectPrompt": "セグメントを選択してください",
@@ -89,9 +102,7 @@
     "modeOriginal": "元音声",
     "modeTts": "TTS",
     "ttsLoading": "TTS読み込み中…",
-    "missingTtsHint": "TTS未生成のセグメントは無音で再生されます",
-    "export": "書き出し",
-    "exporting": "書き出し中… {{percent}}%"
+    "missingTtsHint": "TTS未生成のセグメントは無音で再生されます"
   },
   "dialog": {
     "mp4Filter": "MP4 動画"

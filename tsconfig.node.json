@@ -14,6 +14,7 @@
     "src/renderer/editor/timelineGeometry.ts",
     "src/renderer/editor/assetUrl.ts",
     "src/renderer/editor/rippleOverlay.ts",
+    "src/renderer/editor/stepperState.ts",
     "src/renderer/state/editorReducer.ts",
     "src/renderer/state/segmentOps.ts",
     "src/main/provision/paths.ts",
