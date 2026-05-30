@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld('api', {
   openProjectDialog: () => ipcRenderer.invoke('project:openDialog'),
   openProject: (projectDir: string) => ipcRenderer.invoke('project:open', projectDir),
   recentProjects: () => ipcRenderer.invoke('project:recent'),
+  trashProject: (projectDir: string) => ipcRenderer.invoke('project:trash', projectDir),
   updateSegments: (segments: Segment[]) => ipcRenderer.invoke('project:updateSegments', segments),
 
   readAsset: (rel: string) => ipcRenderer.invoke('asset:read', rel),
@@ -64,5 +65,12 @@ contextBridge.exposeInMainWorld('api', {
     const listener = (_e: unknown, s: { whisper: boolean; voicevox: boolean; ffmpeg: boolean }) => cb(s);
     ipcRenderer.on('setup:statusChanged', listener);
     return () => { ipcRenderer.removeListener('setup:statusChanged', listener); };
+  },
+  notifyRecordingStarted: () => ipcRenderer.invoke('window:recordingStarted'),
+  notifyRecordingStopped: () => ipcRenderer.invoke('window:recordingStopped'),
+  onWindowAutoStop: (cb: () => void) => {
+    const listener = () => cb();
+    ipcRenderer.on('window:autoStop', listener);
+    return () => { ipcRenderer.removeListener('window:autoStop', listener); };
   },
 });
