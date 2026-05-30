@@ -104,15 +104,26 @@ export const PreviewPlayer = forwardRef<PreviewPlayerHandle, Props>(function Pre
 
   const inTts = () => mode === 'tts';
 
-  // 元音声モードの再生/一時停止は video 要素だけを叩き、音声側は <video> 要素の
-  // onPlay/onPause ハンドラで一本化する。以前は toggleOriginal でも a.play() を
-  // 呼んでいたため、video の onPlay で再度 a.play() が走り二重呼び出しで前者が
-  // AbortError を出して無音になるケースがあった（pause→resume で再現）。
+  // 元音声モード：a.play() は click ハンドラ（user gesture）の中で呼ぶ必要がある。
+  // <video onPlay> イベントは v.play() 後に非同期発火するため、そこから呼ぶと
+  // gesture の有効期限切れで Chrome の autoplay policy に拒否されることがある
+  // （特に pause→resume の resume 時に発生）。a.pause() は onPause で行う。
   const toggleOriginal = () => {
     const v = videoRef.current;
+    const a = audioRef.current;
     if (!v) return;
-    if (v.paused) void v.play();
-    else v.pause();
+    if (v.paused) {
+      if (a && Number.isFinite(v.currentTime)) {
+        if (Math.abs(a.currentTime - v.currentTime) > 0.05) {
+          a.currentTime = v.currentTime;
+        }
+        void a.play().catch((err) => console.warn('[preview] narration play rejected', err));
+      }
+      void v.play();
+    } else {
+      v.pause();
+      // a.pause() は <video onPause> 側で行う
+    }
   };
 
   const toggleTts = async () => {
@@ -221,17 +232,10 @@ export const PreviewPlayer = forwardRef<PreviewPlayerHandle, Props>(function Pre
               onTime(e.currentTarget.currentTime);
               syncAudioTime();
             }}
-            onPlay={(e) => {
+            onPlay={() => {
               if (inTts()) return;
-              const a = audioRef.current;
-              if (a && Number.isFinite(e.currentTarget.currentTime)) {
-                // 念のため currentTime を video に揃えてから（一時停止中の微小ドリフト対策）
-                // play する。catch しないと未捕捉拒否がコンソールに残ることがある。
-                if (Math.abs(a.currentTime - e.currentTarget.currentTime) > 0.05) {
-                  a.currentTime = e.currentTarget.currentTime;
-                }
-                void a.play().catch(() => { /* 再生不可は無視 */ });
-              }
+              // a.play() は toggleOriginal（user gesture 内）で済ませている。
+              // ここで再度呼ぶと gesture の外なので autoplay policy に拒否されうる。
               notifyPlaying(true);
             }}
             onPause={() => { if (inTts()) return; audioRef.current?.pause(); notifyPlaying(false); }}
