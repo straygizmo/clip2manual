@@ -17,6 +17,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Circle, Square, FolderOpen, Play, Trash2, Pencil } from 'lucide-react';
+import { SourcePicker } from './SourcePicker';
 import { DependencyStatus } from './DependencyStatus';
 
 export function HomeScreen() {
@@ -29,6 +30,7 @@ export function HomeScreen() {
   const [renamingDir, setRenamingDir] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [pendingDelete, setPendingDelete] = useState<RecentProject | null>(null);
+  const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
 
   const refreshRecent = () => { void window.api.recentProjects().then(setRecent); };
   useEffect(refreshRecent, []);
@@ -39,11 +41,21 @@ export function HomeScreen() {
   }
 
   async function onStart() {
+    if (!selectedSourceId) {
+      setStatus(t('home.source.notSelected'));
+      return;
+    }
     try {
-      // 最小化アニメーションが録画に写り込まないよう、先にウィンドウを最小化し
-      // OS のアニメーション完了を待ってから録画を開始する。
       await window.api.notifyRecordingStarted();
       await new Promise((resolve) => setTimeout(resolve, 500));
+
+      const prep = await window.api.prepareCapture(selectedSourceId);
+      if (!prep.ok) {
+        await window.api.notifyRecordingStopped();
+        setStatus(t(`home.source.prepareFailed.${prep.reason}`, { defaultValue: t('home.source.prepareFailed.generic') }));
+        return;
+      }
+
       const recorder = new ScreenRecorder();
       await recorder.start();
       await window.api.startRecording();
@@ -131,10 +143,16 @@ export function HomeScreen() {
           onClick={recording ? onStop : onStart}
           variant={recording ? 'destructive' : 'default'}
           size="lg"
+          disabled={!recording && !selectedSourceId}
         >
           {recording ? <Square className="size-4" /> : <Circle className="size-4 fill-current" />}
           {recording ? t('home.recordStop') : t('home.recordStart')}
         </Button>
+        <SourcePicker
+          value={selectedSourceId}
+          onChange={setSelectedSourceId}
+          disabled={recording}
+        />
         <Button
           variant="secondary"
           onClick={() =>
