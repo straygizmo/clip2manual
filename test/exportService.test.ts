@@ -5,10 +5,24 @@ import * as path from 'node:path';
 import { runExport } from '../src/main/export/exportService';
 import { type Segment } from '../src/shared/types';
 
-function seg(id: string, start: number, end: number, ttsAudio: string | null): Segment {
+function seg(overrides: Partial<Segment>): Segment {
   return {
-    id, videoStart: start, videoEnd: end, originalText: '', correctedText: '',
-    ttsAudio, voice: { speaker: 3, speed: 1 }, clicks: [], enabled: true,
+    id: 'seg-x', videoStart: 0, videoEnd: 1,
+    originalText: '', correctedText: '',
+    ttsAudio: null,
+    voice: { speaker: 3, speed: 1 }, clicks: [], enabled: true,
+    ...overrides,
+  };
+}
+
+function makeProbe(rawDuration: number, ttsDuration = 1.5) {
+  return async (args: string[]) => {
+    const s = args.join(' ');
+    if (s.includes('r_frame_rate')) return '30/1';
+    if (s.includes('width,height')) return '1920,1080';
+    // probeDuration: raw.webm vs tts/*.wav
+    if (s.includes('raw.webm')) return String(rawDuration);
+    return String(ttsDuration);
   };
 }
 
@@ -20,133 +34,155 @@ beforeEach(async () => {
 });
 afterEach(async () => { await fs.rm(projectDir, { recursive: true, force: true }); });
 
-describe('runExport', () => {
-  it('probes fps + resolution + clip durations, runs per-segment + concat + mux, reports progress', async () => {
+describe('runExport (raw-timeline architecture)', () => {
+  it('runs probe → ripple → subtitle → video → audio → mux with 5 ticks of progress', async () => {
     const ffmpegCalls: string[][] = [];
-    const probeCalls: string[][] = [];
     const progress: number[] = [];
-
     await runExport({
-      segments: [seg('seg-001', 1, 3, 'tts/seg-001.wav'), seg('seg-002', 3, 6, null)],
-      projectDir,
+      segments: [
+        seg({ id: 'seg-001', videoStart: 2.96, videoEnd: 5.8, ttsAudio: 'tts/seg-001.wav', correctedText: 'a' }),
+        seg({ id: 'seg-002', videoStart: 5.8, videoEnd: 7.65, ttsAudio: 'tts/seg-002.wav', correctedText: 'b' }),
+      ],
+      projectDir, tmpDir,
       outPath: path.join(projectDir, 'out.mp4'),
-      tmpDir,
       credit: 'VOICEVOX',
       showSubtitles: false,
       runFfmpeg: async (args) => { ffmpegCalls.push(args); },
-      runProbe: async (args) => {
-        probeCalls.push(args);
-        const s = args.join(' ');
-        if (s.includes('r_frame_rate')) return '30/1';
-        if (s.includes('width,height')) return '1920,1080';
-        return '2.0';
-      },
+      runProbe: makeProbe(16.07),
       onProgress: (p) => progress.push(p),
+      // mock to avoid sharp
+      generateRippleFrames: async () => null,
+      generateSubtitleOverlays: async () => [],
     });
-
-    expect(probeCalls.length).toBe(3); // fps + resolution + 1 clip duration (seg-002 has no ttsAudio)
-    expect(ffmpegCalls.length).toBe(7); // 2 video + 2 audio + 2 concat + 1 mux (no clicks → no overlay)
-    expect(ffmpegCalls[6][ffmpegCalls[6].length - 1]).toBe(path.join(projectDir, 'out.mp4'));
-    expect(progress[progress.length - 1]).toBe(100);
-    // 重要: clicks 空のスロットでは ripple overlay は使われない（-vf 形式のまま）
-    for (let i = 0; i < 2; i++) {
-      expect(ffmpegCalls[i * 2]).toContain('-vf');
-      expect(ffmpegCalls[i * 2]).not.toContain('-filter_complex');
-    }
+    // 3 ffmpeg calls: video + audio + mux
+    expect(ffmpegCalls.length).toBe(3);
+    // First call is video encoding raw.webm
+    expect(ffmpegCalls[0].join(' ')).toContain('raw.webm');
+    // Second call is audio mixing
+    expect(ffmpegCalls[1].join(' ')).toContain('anullsrc');
+    // Mux last
+    expect(ffmpegCalls[2][ffmpegCalls[2].length - 1]).toBe(path.join(projectDir, 'out.mp4'));
+    // 5 ticks: 20/40/60/80/100
+    expect(progress).toEqual([20, 40, 60, 80, 100]);
   });
 
-  it('throws when there are no segments', async () => {
+  it('throws on empty segments list', async () => {
     await expect(runExport({
-      segments: [], projectDir, outPath: path.join(projectDir, 'o.mp4'), tmpDir, credit: 'x',
+      segments: [], projectDir, tmpDir,
+      outPath: path.join(projectDir, 'o.mp4'), credit: 'x',
       showSubtitles: false,
-      runFfmpeg: async () => {}, runProbe: async () => '30/1',
+      runFfmpeg: async () => {}, runProbe: makeProbe(10),
     })).rejects.toThrow();
   });
 
-  it('uses ripple overlay for slots that have clicks', async () => {
+  it('throws noEnabledSegments when all segments are disabled', async () => {
+    await expect(runExport({
+      segments: [seg({ id: 'a', enabled: false, ttsAudio: 'tts/a.wav', videoStart: 1, videoEnd: 2, correctedText: 'x' })],
+      projectDir, tmpDir,
+      outPath: path.join(projectDir, 'o.mp4'), credit: 'x',
+      showSubtitles: false,
+      runFfmpeg: async () => {}, runProbe: makeProbe(10),
+    })).rejects.toThrow();
+  });
+
+  it('skips ripple PNG generation when no enabled segment has clicks', async () => {
+    let rippleCalled = false;
     const ffmpegCalls: string[][] = [];
-    const generateCalls: Array<{ segmentId: string; clickCount: number }> = [];
-    const segWithClicks: Segment = {
-      ...seg('seg-001', 1, 3, 'tts/seg-001.wav'),
-      clicks: [{ t: 1.5, x: 100, y: 200, button: 1 }],
-    };
     await runExport({
-      segments: [segWithClicks],
-      projectDir,
-      outPath: path.join(projectDir, 'out.mp4'),
-      tmpDir,
-      credit: 'VOICEVOX',
+      segments: [seg({ id: 'a', ttsAudio: 'tts/a.wav', videoStart: 1, videoEnd: 2 })],
+      projectDir, tmpDir,
+      outPath: path.join(projectDir, 'out.mp4'), credit: 'x',
       showSubtitles: false,
       runFfmpeg: async (args) => { ffmpegCalls.push(args); },
-      runProbe: async (args) => {
-        const s = args.join(' ');
-        if (s.includes('r_frame_rate')) return '30/1';
-        if (s.includes('width,height')) return '1920,1080';
-        return '2.5';
-      },
+      runProbe: makeProbe(10),
       generateRippleFrames: async (input) => {
-        generateCalls.push({ segmentId: input.slot.segmentId, clickCount: input.clicks.length });
-        return { pattern: path.join(input.outDir, '%05d.png'), fps: input.fps };
+        rippleCalled = true;
+        expect(input.clicks.length).toBe(0);
+        return null;
       },
     });
-
-    expect(generateCalls).toEqual([{ segmentId: 'seg-001', clickCount: 1 }]);
-    // seg-001 の video 中間クリップ呼び出しに ripple overlay が入っている
-    const videoCall = ffmpegCalls[0];
-    expect(videoCall).toContain('-filter_complex');
-    expect(videoCall).toContain('-map');
-    expect(videoCall.join(' ')).toContain('overlay=shortest=1');
+    expect(rippleCalled).toBe(true);
+    // video encoding goes through -vf path (no -filter_complex) when both ripple and subs are absent
+    expect(ffmpegCalls[0]).toContain('-vf');
+    expect(ffmpegCalls[0]).not.toContain('-filter_complex');
   });
 
-  it('calls generateSubtitleFrame for each segment with text when showSubtitles=true', async () => {
-    const subCalls: Array<{ slotId: string; text: string }> = [];
+  it('passes absolute click times (from enabled segments only) to ripple generator', async () => {
+    let captured: ReadonlyArray<{ x: number; y: number; t: number }> = [];
     await runExport({
       segments: [
-        { ...seg('seg-001', 1, 3, 'tts/seg-001.wav'), correctedText: 'hello' },
-        { ...seg('seg-002', 3, 6, null), correctedText: '' },
+        seg({ id: 'a', videoStart: 1, videoEnd: 2, ttsAudio: 'tts/a.wav',
+              clicks: [{ x: 10, y: 20, t: 1.5, button: 1 }] }),
+        seg({ id: 'b', videoStart: 2, videoEnd: 3, enabled: false,
+              clicks: [{ x: 30, y: 40, t: 2.5, button: 1 }] }),
       ],
-      projectDir,
-      outPath: path.join(projectDir, 'out.mp4'),
-      tmpDir,
-      credit: 'VOICEVOX',
-      showSubtitles: true,
-      runFfmpeg: async () => {},
-      runProbe: async (args) => {
-        const s = args.join(' ');
-        if (s.includes('r_frame_rate')) return '30/1';
-        if (s.includes('width,height')) return '1920,1080';
-        return '2.0';
-      },
-      generateSubtitleFrame: async (input) => {
-        subCalls.push({ slotId: input.slot.segmentId, text: input.text });
-        if (input.text.trim() === '') return null;
-        return { pngPath: '/tmp/sub.png', durationSec: input.slot.clipDuration || 1 };
-      },
-    });
-
-    expect(subCalls.length).toBe(2);
-    expect(subCalls[0]).toEqual({ slotId: 'seg-001', text: 'hello' });
-    expect(subCalls[1]).toEqual({ slotId: 'seg-002', text: '' });
-  });
-
-  it('skips generateSubtitleFrame entirely when showSubtitles=false', async () => {
-    const subCalls: number[] = [];
-    await runExport({
-      segments: [{ ...seg('seg-001', 1, 3, 'tts/seg-001.wav'), correctedText: 'hello' }],
-      projectDir,
-      outPath: path.join(projectDir, 'out.mp4'),
-      tmpDir,
-      credit: 'VOICEVOX',
+      projectDir, tmpDir,
+      outPath: path.join(projectDir, 'out.mp4'), credit: 'x',
       showSubtitles: false,
       runFfmpeg: async () => {},
-      runProbe: async (args) => {
-        const s = args.join(' ');
-        if (s.includes('r_frame_rate')) return '30/1';
-        if (s.includes('width,height')) return '1920,1080';
-        return '2.0';
+      runProbe: makeProbe(10),
+      generateRippleFrames: async (input) => {
+        captured = input.clicks;
+        return { pattern: 'rip/%06d.png', fps: 30 };
       },
-      generateSubtitleFrame: async () => { subCalls.push(1); return null; },
     });
-    expect(subCalls.length).toBe(0);
+    expect(captured).toEqual([{ segId: 'a', x: 10, y: 20, t: 1.5, button: 1 }]);
+  });
+
+  it('passes only enabled+nonempty-text spans to subtitle generator', async () => {
+    let captured: ReadonlyArray<{ segId: string; text: string }> = [];
+    await runExport({
+      segments: [
+        seg({ id: 'a', videoStart: 1, videoEnd: 2, ttsAudio: 'tts/a.wav', correctedText: 'hello' }),
+        seg({ id: 'b', videoStart: 3, videoEnd: 4, correctedText: '' }),
+        seg({ id: 'c', videoStart: 5, videoEnd: 6, enabled: false, correctedText: 'cut' }),
+      ],
+      projectDir, tmpDir,
+      outPath: path.join(projectDir, 'out.mp4'), credit: 'x',
+      showSubtitles: true,
+      runFfmpeg: async () => {},
+      runProbe: makeProbe(10),
+      generateRippleFrames: async () => null,
+      generateSubtitleOverlays: async (input) => {
+        captured = input.spans.map((s) => ({ segId: s.segId, text: s.text }));
+        return [];
+      },
+    });
+    expect(captured).toEqual([{ segId: 'a', text: 'hello' }]);
+  });
+
+  it('skips subtitle generator entirely when showSubtitles=false', async () => {
+    let called = 0;
+    await runExport({
+      segments: [seg({ id: 'a', videoStart: 1, videoEnd: 2, ttsAudio: 'tts/a.wav', correctedText: 'hi' })],
+      projectDir, tmpDir,
+      outPath: path.join(projectDir, 'out.mp4'), credit: 'x',
+      showSubtitles: false,
+      runFfmpeg: async () => {},
+      runProbe: makeProbe(10),
+      generateRippleFrames: async () => null,
+      generateSubtitleOverlays: async () => { called++; return []; },
+    });
+    expect(called).toBe(0);
+  });
+
+  it('audio ffmpeg call delays each TTS clip by its segment.videoStart', async () => {
+    const ffmpegCalls: string[][] = [];
+    await runExport({
+      segments: [
+        seg({ id: 'a', videoStart: 2.96, videoEnd: 5.8, ttsAudio: 'tts/a.wav' }),
+        seg({ id: 'b', videoStart: 5.8, videoEnd: 7.65, ttsAudio: 'tts/b.wav' }),
+      ],
+      projectDir, tmpDir,
+      outPath: path.join(projectDir, 'out.mp4'), credit: 'x',
+      showSubtitles: false,
+      runFfmpeg: async (args) => { ffmpegCalls.push(args); },
+      runProbe: makeProbe(16.07),
+      generateRippleFrames: async () => null,
+      generateSubtitleOverlays: async () => [],
+    });
+    const audioArgs = ffmpegCalls[1].join(' ');
+    expect(audioArgs).toContain('adelay=2960|2960');
+    expect(audioArgs).toContain('adelay=5800|5800');
   });
 });

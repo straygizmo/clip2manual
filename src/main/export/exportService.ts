@@ -1,19 +1,19 @@
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import { type Segment } from '../../shared/types';
-import { computePreviewTimeline } from '../../shared/previewTimeline';
+import { computeExportSchedule, isScheduleEmpty } from '../../shared/exportSchedule';
 import {
   probeDurationArgs, parseProbeDuration, probeFpsArgs, parseFps,
   probeResolutionArgs, parseResolution,
-  segmentVideoArgs, segmentAudioArgs, concatArgs, muxArgs,
+  globalVideoArgs, globalAudioArgs, muxArgs,
 } from './ffargs';
-import { generateRippleFramesForSlot, type GenerateRippleFramesInput } from './rippleFrames';
-import { generateSubtitleFrameForSlot, type GenerateSubtitleFrameInput, type SubtitleFrameOutput } from './subtitleFrames';
+import { generateGlobalRippleFrames, type GenerateGlobalRippleFramesInput } from './rippleFrames';
+import { generateSubtitleOverlays, type GenerateSubtitleOverlaysInput, type SubtitleOverlay } from './subtitleFrames';
 import { loadSubtitleFontBase64 } from './fontPaths';
 import { tMain } from '../i18n';
 
 export interface ExportOptions {
-  /** 書き出し対象の segments。enabled での絞り込みは computePreviewTimeline 内で行われる。 */
+  /** 書き出し対象の segments。enabled での絞り込みは computeExportSchedule 内で行われる。 */
   segments: Segment[];
   projectDir: string; // assets/raw.webm, tts/<id>.wav がある
   outPath: string;    // 最終 MP4
@@ -22,22 +22,32 @@ export interface ExportOptions {
   showSubtitles: boolean;
   runFfmpeg: (args: string[]) => Promise<void>;
   runProbe: (args: string[]) => Promise<string>;
-  /** デフォルトは本物の generateRippleFramesForSlot。テストでモック可。 */
+  /** デフォルトは本物の generateGlobalRippleFrames。テストでモック可。 */
   generateRippleFrames?: (
-    input: GenerateRippleFramesInput,
+    input: GenerateGlobalRippleFramesInput,
   ) => Promise<{ pattern: string; fps: number } | null>;
-  generateSubtitleFrame?: (
-    input: GenerateSubtitleFrameInput,
-  ) => Promise<SubtitleFrameOutput | null>;
+  generateSubtitleOverlays?: (
+    input: GenerateSubtitleOverlaysInput,
+  ) => Promise<SubtitleOverlay[]>;
   onProgress?: (percent: number) => void;
   signal?: AbortSignal;
 }
 
-/** concat リスト用にパスを安全に引用する。 */
-function listLine(p: string): string {
-  return `file '${p.replace(/'/g, "'\\''")}'`;
-}
-
+/**
+ * raw.webm のタイムラインをそのまま使い、TTS/字幕/リップルを絶対時刻で重ねて MP4 を出力する。
+ * プレビューの TTS モードと同じ見え方になる（先頭の無声区間や segment 間ギャップを保持し、
+ * TTS が映像より長くても映像は止めない）。
+ *
+ * パイプライン:
+ *   1. raw.webm の fps / 解像度 / 全長を probe
+ *   2. 各 enabled+ttsAudio セグメントの TTS 長を probe
+ *   3. ExportSchedule を構築
+ *   4. リップル PNG シーケンス（全長分）を生成
+ *   5. 字幕 PNG 群（span ごとに 1 枚）を生成
+ *   6. 動画エンコード（raw + overlays → mp4）
+ *   7. 音声エンコード（silence + adelay'd TTS の amix → wav）
+ *   8. mux
+ */
 export async function runExport(opts: ExportOptions): Promise<void> {
   if (opts.segments.length === 0) throw new Error(tMain('errors.noSegments'));
   const raw = path.join(opts.projectDir, 'assets/raw.webm');
@@ -45,80 +55,88 @@ export async function runExport(opts: ExportOptions): Promise<void> {
 
   const fps = parseFps(await opts.runProbe(probeFpsArgs(raw)));
   const { width: videoW, height: videoH } = parseResolution(await opts.runProbe(probeResolutionArgs(raw)));
+  const rawVideoDuration = parseProbeDuration(await opts.runProbe(probeDurationArgs(raw)));
+  if (!(rawVideoDuration > 0)) throw new Error(tMain('errors.ffprobeParseDuration', { stdout: String(rawVideoDuration) }));
 
   const clipDurations = new Map<string, number>();
   for (const s of opts.segments) {
-    if (!s.ttsAudio) continue;
+    if (s.enabled === false || !s.ttsAudio) continue;
     const d = parseProbeDuration(await opts.runProbe(probeDurationArgs(path.join(opts.projectDir, s.ttsAudio))));
-    clipDurations.set(s.id, d);
+    if (d > 0) clipDurations.set(s.id, d);
   }
 
-  const slots = computePreviewTimeline(opts.segments, clipDurations);
-  if (slots.length === 0) throw new Error(tMain('errors.noEnabledSegments')); // 全カット等
-  const total = slots.length + 3; // segments + 2 concat + 1 mux
+  const schedule = computeExportSchedule({
+    segments: opts.segments,
+    rawVideoDuration,
+    clipDurations,
+  });
+  if (isScheduleEmpty(schedule)) throw new Error(tMain('errors.noEnabledSegments'));
+
+  // 5 フェーズ: ripple PNG → subtitle PNG → video encode → audio encode → mux
+  const TOTAL_PHASES = 5;
   let done = 0;
-  const tick = () => { done += 1; opts.onProgress?.(Math.round((done / total) * 100)); };
+  const tick = () => { done += 1; opts.onProgress?.(Math.round((done / TOTAL_PHASES) * 100)); };
 
-  const generate = opts.generateRippleFrames ?? generateRippleFramesForSlot;
-  const generateSubtitle = opts.generateSubtitleFrame ?? generateSubtitleFrameForSlot;
-  // fontBase64: load once iff we need the real subtitle renderer (skip when caller injects a mock)
-  const fontBase64 = (opts.showSubtitles && !opts.generateSubtitleFrame)
-    ? await loadSubtitleFontBase64()
-    : '';
+  const generateRipple = opts.generateRippleFrames ?? generateGlobalRippleFrames;
+  const generateSubs = opts.generateSubtitleOverlays ?? generateSubtitleOverlays;
+  const needFont = opts.showSubtitles && !opts.generateSubtitleOverlays && schedule.subtitleSpans.length > 0;
+  const fontBase64 = needFont ? await loadSubtitleFontBase64() : '';
 
-  const videoParts: string[] = [];
-  const audioParts: string[] = [];
-  for (const slot of slots) {
-    if (opts.signal?.aborted) throw new Error(tMain('errors.exportCancelled'));
-    const segment = opts.segments.find((s) => s.id === slot.segmentId);
-    const clicks = segment?.clicks ?? [];
-    const ripple = await generate({
-      slot,
-      clicks,
-      fps,
-      videoW,
-      videoH,
-      outDir: path.join(opts.tmpDir, `${slot.segmentId}_ripple`),
-      signal: opts.signal,
-    });
+  if (opts.signal?.aborted) throw new Error(tMain('errors.exportCancelled'));
+  const ripple = await generateRipple({
+    clicks: schedule.clicks,
+    totalDuration: schedule.totalDuration,
+    fps,
+    videoW,
+    videoH,
+    outDir: path.join(opts.tmpDir, 'ripple'),
+    signal: opts.signal,
+  });
+  tick();
 
-    let subtitle: { pngPath: string; durationSec: number } | undefined;
-    if (opts.showSubtitles && segment) {
-      const text = (segment.correctedText.trim() || segment.originalText.trim());
-      const out = await generateSubtitle({
-        slot,
-        text,
+  const subtitleOverlays = (opts.showSubtitles && schedule.subtitleSpans.length > 0)
+    ? await generateSubs({
+        spans: schedule.subtitleSpans,
         videoW,
         videoH,
         fontBase64,
-        outDir: path.join(opts.tmpDir, `${slot.segmentId}_subtitle`),
+        outDir: path.join(opts.tmpDir, 'subtitles'),
         signal: opts.signal,
-      });
-      if (out !== null) subtitle = out;
-    }
-
-    const vOut = path.join(opts.tmpDir, `${slot.segmentId}.mp4`);
-    const aOut = path.join(opts.tmpDir, `${slot.segmentId}.wav`);
-    const clipPath = segment && segment.ttsAudio ? path.join(opts.projectDir, segment.ttsAudio) : null;
-    await opts.runFfmpeg(segmentVideoArgs({ rawPath: raw, slot, outPath: vOut, fps, ripple: ripple ?? undefined, subtitle }));
-    await opts.runFfmpeg(segmentAudioArgs({ clipPath, slotDuration: slot.slotDuration, outPath: aOut }));
-    videoParts.push(vOut);
-    audioParts.push(aOut);
-    tick();
-  }
-
-  const vList = path.join(opts.tmpDir, 'video.txt');
-  const aList = path.join(opts.tmpDir, 'audio.txt');
-  await fs.writeFile(vList, videoParts.map(listLine).join('\n'), 'utf8');
-  await fs.writeFile(aList, audioParts.map(listLine).join('\n'), 'utf8');
-
-  const vConcat = path.join(opts.tmpDir, 'video.mp4');
-  const aConcat = path.join(opts.tmpDir, 'audio.wav');
-  await opts.runFfmpeg(concatArgs({ listFile: vList, outPath: vConcat }));
-  tick();
-  await opts.runFfmpeg(concatArgs({ listFile: aList, outPath: aConcat }));
+      })
+    : [];
   tick();
 
-  await opts.runFfmpeg(muxArgs({ videoPath: vConcat, audioPath: aConcat, outPath: opts.outPath, comment: opts.credit }));
+  const videoOut = path.join(opts.tmpDir, 'video.mp4');
+  const audioOut = path.join(opts.tmpDir, 'audio.wav');
+
+  if (opts.signal?.aborted) throw new Error(tMain('errors.exportCancelled'));
+  await opts.runFfmpeg(globalVideoArgs({
+    rawPath: raw,
+    totalDuration: schedule.totalDuration,
+    fps,
+    outPath: videoOut,
+    ripple: ripple ?? undefined,
+    subtitles: subtitleOverlays,
+  }));
+  tick();
+
+  if (opts.signal?.aborted) throw new Error(tMain('errors.exportCancelled'));
+  await opts.runFfmpeg(globalAudioArgs({
+    totalDuration: schedule.totalDuration,
+    outPath: audioOut,
+    clips: schedule.audioClips.map((c) => ({
+      delaySec: c.delaySec,
+      pathAbs: path.join(opts.projectDir, c.pathRel),
+    })),
+  }));
+  tick();
+
+  if (opts.signal?.aborted) throw new Error(tMain('errors.exportCancelled'));
+  await opts.runFfmpeg(muxArgs({
+    videoPath: videoOut,
+    audioPath: audioOut,
+    outPath: opts.outPath,
+    comment: opts.credit,
+  }));
   tick();
 }

@@ -2,11 +2,16 @@ import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import sharp from 'sharp';
 import { subtitleSvg } from './subtitleSvg';
-import { type PreviewSlot } from '../../shared/previewTimeline';
+import { type ExportSubtitleSpan } from '../../shared/exportSchedule';
 
-export interface GenerateSubtitleFrameInput {
-  slot: PreviewSlot;
-  text: string;
+export interface SubtitleOverlay {
+  pngPath: string;
+  startSec: number;
+  endSec: number;
+}
+
+export interface GenerateSubtitleOverlaysInput {
+  spans: ReadonlyArray<ExportSubtitleSpan>;
   videoW: number;
   videoH: number;
   fontBase64: string;
@@ -14,33 +19,30 @@ export interface GenerateSubtitleFrameInput {
   signal?: AbortSignal;
 }
 
-export interface SubtitleFrameOutput {
-  pngPath: string;
-  durationSec: number;
-}
-
 /**
- * スロットの字幕 PNG を 1枚生成する。
- * 表示すべきものが無いとき（空テキスト or 区間長 0）は null。
- * durationSec はプレビューの visibleDuration と同じ式: clipDuration > 0 ? clipDuration : videoSpan。
+ * 各セグメントの字幕 PNG を 1 枚ずつ生成する。subtitleSvg が null（空テキスト等）を返した
+ * span はスキップ。返り値の配列順は spans の入力順を保つ（ffmpeg 側の overlay enable=between(t,…)
+ * は時間条件で動くので順序自体は描画結果に影響しないが、テストと再現性のため順序保持）。
  */
-export async function generateSubtitleFrameForSlot(
-  input: GenerateSubtitleFrameInput,
-): Promise<SubtitleFrameOutput | null> {
-  if (input.text.trim() === '') return null;
-  const videoSpan = Math.max(0, input.slot.videoEnd - input.slot.videoStart);
-  const durationSec = input.slot.clipDuration > 0 ? input.slot.clipDuration : videoSpan;
-  if (durationSec <= 0) return null;
-  const svg = subtitleSvg({
-    text: input.text,
-    videoW: input.videoW,
-    videoH: input.videoH,
-    fontBase64: input.fontBase64,
-  });
-  if (svg === null) return null;
-  if (input.signal?.aborted) return null;
+export async function generateSubtitleOverlays(
+  input: GenerateSubtitleOverlaysInput,
+): Promise<SubtitleOverlay[]> {
+  const out: SubtitleOverlay[] = [];
+  if (input.spans.length === 0) return out;
   await fs.mkdir(input.outDir, { recursive: true });
-  const pngPath = path.join(input.outDir, 'subtitle.png');
-  await sharp(Buffer.from(svg)).png({ compressionLevel: 9 }).toFile(pngPath);
-  return { pngPath, durationSec };
+  for (const span of input.spans) {
+    if (input.signal?.aborted) return out;
+    if (span.endSec <= span.startSec) continue;
+    const svg = subtitleSvg({
+      text: span.text,
+      videoW: input.videoW,
+      videoH: input.videoH,
+      fontBase64: input.fontBase64,
+    });
+    if (svg === null) continue;
+    const pngPath = path.join(input.outDir, `${span.segId}.png`);
+    await sharp(Buffer.from(svg)).png({ compressionLevel: 9 }).toFile(pngPath);
+    out.push({ pngPath, startSec: span.startSec, endSec: span.endSec });
+  }
+  return out;
 }

@@ -15,7 +15,14 @@
     "saveFailed": "Failed to save: {{message}}",
     "recentTitle": "Recent recordings",
     "recentEmpty": "No recordings yet.",
-    "recentOpen": "Open"
+    "recentOpen": "Open",
+    "recentDelete": "Delete",
+    "recentDeleteTitle": "Delete this recording?",
+    "recentDeleteConfirm": "\"{{name}}\" will be moved to the OS trash. You can restore it from there.",
+    "recentDeleteFailed": "Delete failed: {{message}}",
+    "recentRename": "Rename",
+    "recentRenameFailed": "Rename failed: {{message}}",
+    "cancel": "Cancel"
   },
   "deps": {
     "title": "Dependencies",
@@ -83,7 +90,8 @@
     "creditWithSpeaker": "Credit: VOICEVOX ({{speaker}})",
     "cut": "Cut",
     "enable": "Enable",
-    "splitAtPlayhead": "Split (at playhead)",
+    "enabled": "Enabled",
+    "splitAtPlayhead": "Split",
     "mergeNext": "Merge with next",
     "cutBadge": "Cut (excluded from preview / export)",
     "clickCount": "Clicks: {{count}}"

@@ -2,9 +2,10 @@ import { useTranslation } from 'react-i18next';
 import { type Segment } from '../../shared/types';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
 import {
   Play, Pause,
-  Scissors, SplitSquareHorizontal, ArrowDownToLine,
+  Scissors, ArrowRightToLine,
 } from 'lucide-react';
 
 interface Props {
@@ -32,9 +33,13 @@ export function TimelineToolbar({
 
   const isLast = !!selected && segments.length > 0
     && segments[segments.length - 1].id === selected.id;
-  const canSplit = !!selected
+  const playheadInside = !!selected
     && currentTime > selected.videoStart
     && currentTime < selected.videoEnd;
+  const canSplit = playheadInside;
+  const canMerge = playheadInside && !isLast;
+
+  const playOn = selected ? selected.enabled !== false : true;
 
   return (
     <div className="flex shrink-0 flex-nowrap items-center gap-2 overflow-x-auto bg-muted px-3 py-2 text-foreground">
@@ -70,16 +75,14 @@ export function TimelineToolbar({
 
       <Separator orientation="vertical" className="h-6 shrink-0" />
 
-      <Button
-        size="sm"
-        variant="outline"
-        className="shrink-0"
-        onClick={() => selected && onToggleCut(selected.id)}
-        disabled={!selected || ttsBusy}
-      >
-        <Scissors className="size-4" />
-        {selected && selected.enabled === false ? t('inspector.enable') : t('inspector.cut')}
-      </Button>
+      <label className="flex shrink-0 items-center gap-2 text-xs">
+        <Switch
+          checked={playOn}
+          onCheckedChange={() => selected && onToggleCut(selected.id)}
+          disabled={!selected || ttsBusy || mode === 'original'}
+        />
+        {t('inspector.enabled')}
+      </label>
       <Button
         size="sm"
         variant="outline"
@@ -87,7 +90,7 @@ export function TimelineToolbar({
         onClick={() => selected && onSplitAtPlayhead(selected.id)}
         disabled={!canSplit || ttsBusy}
       >
-        <SplitSquareHorizontal className="size-4" />
+        <Scissors className="size-4" />
         {t('inspector.splitAtPlayhead')}
       </Button>
       <Button
@@ -95,9 +98,9 @@ export function TimelineToolbar({
         variant="outline"
         className="shrink-0"
         onClick={() => selected && onMergeNext(selected.id)}
-        disabled={!selected || isLast || ttsBusy}
+        disabled={!canMerge || ttsBusy}
       >
-        <ArrowDownToLine className="size-4" />
+        <ArrowRightToLine className="size-4" />
         {t('inspector.mergeNext')}
       </Button>
     </div>

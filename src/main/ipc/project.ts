@@ -1,8 +1,8 @@
 // src/main/ipc/project.ts
-import { ipcMain, dialog, app } from 'electron';
+import { ipcMain, dialog, app, shell } from 'electron';
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
-import { loadProject, assetPath } from '../projectStore';
+import { loadProject, saveProject, assetPath } from '../projectStore';
 import { projectSession } from '../projectSession';
 import { type Segment, type ProjectSettings } from '../../shared/types';
 
@@ -56,6 +56,20 @@ export function registerProjectIpc(): void {
     }
     out.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     return out;
+  });
+
+  ipcMain.handle('project:trash', async (_e, projectDir: string) => {
+    await shell.trashItem(projectDir);
+    return { ok: true as const };
+  });
+
+  ipcMain.handle('project:rename', async (_e, projectDir: string, newName: string) => {
+    const trimmed = newName.trim();
+    if (!trimmed) throw new Error('Project name cannot be empty');
+    const project = await loadProject(projectDir);
+    project.meta.name = trimmed;
+    await saveProject(projectDir, project);
+    return { ok: true as const };
   });
 
   ipcMain.handle('asset:read', async (_e, rel: string) => {

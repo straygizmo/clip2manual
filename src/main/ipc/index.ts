@@ -5,6 +5,7 @@ import { registerTranscriptionIpc } from './transcription';
 import { registerTtsIpc } from './tts';
 import { registerExportIpc } from './export';
 import { registerSetupIpc } from './setup';
+import { registerWindowIpc } from './window';
 
 export function registerIpc(): void {
   registerRecordingIpc();
@@ -13,4 +14,5 @@ export function registerIpc(): void {
   registerTtsIpc();
   registerExportIpc();
   registerSetupIpc();
+  registerWindowIpc();
 }

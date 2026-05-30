@@ -43,7 +43,8 @@
   },
   "build": {
     "extraResources": [
-      { "from": "vendor/fonts", "to": "fonts" }
+      { "from": "vendor/fonts", "to": "fonts" },
+      { "from": "resources/icons", "to": "icons" }
     ]
   }
 }
