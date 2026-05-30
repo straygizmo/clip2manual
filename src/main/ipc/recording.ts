@@ -25,9 +25,17 @@ async function tryAddWebmCues(filePath: string): Promise<void> {
     throw err;
   }
   const indexedPath = filePath + '.indexed.webm';
+  const t0 = Date.now();
   try {
-    await runFfmpeg(ffmpegPath, ['-y', '-i', filePath, '-c', 'copy', indexedPath]);
+    // -cues_to_front 1: Cues 要素をファイル先頭に置く（末尾 Cues だと Chromium が
+    //   読み込まないケースで seek が失敗する事象に対応）
+    await runFfmpeg(ffmpegPath, [
+      '-y', '-i', filePath, '-c', 'copy',
+      '-cues_to_front', '1',
+      '-f', 'webm', indexedPath,
+    ]);
     await fs.rename(indexedPath, filePath);
+    console.log(`[recording] re-muxed ${path.basename(filePath)} with cues_to_front in ${Date.now() - t0}ms`);
   } catch (err) {
     // 録画自体は保存済みなので、再 mux 失敗は致命ではない。Cues 無しのままで継続。
     console.warn(`[recording] failed to add WebM cues for ${filePath}: ${String(err)}`);
