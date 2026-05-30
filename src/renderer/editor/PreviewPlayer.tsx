@@ -164,21 +164,6 @@ export const PreviewPlayer = forwardRef<PreviewPlayerHandle, Props>(function Pre
     void switchModeRef.current(requestedMode.mode);
   }, [requestedMode]);
 
-  // TTS モード中にスロットに影響する segment 属性（境界・enabled・ttsAudio）が
-  // 変わったら、コントローラを再 load してスロットと buffers を最新化する。
-  // テキスト編集や click 削除など TTS に影響しない変更では発火しないよう、
-  // 関連フィールドだけを連結したシグネチャで依存比較する。
-  const ttsRelevantSig = segments
-    .map((s) => `${s.id}:${s.videoStart}:${s.videoEnd}:${s.enabled !== false ? 1 : 0}:${s.ttsAudio ?? ''}`)
-    .join('|');
-  useEffect(() => {
-    if (mode !== 'tts') return;
-    if (playing) return; // 再生中の編集はライブで反映せず、停止後に追従する
-    void controllerRef.current?.load(segments, projectDir);
-    // segments 自体は依存に入れず、軽量なシグネチャだけを依存にする
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ttsRelevantSig, mode, playing, projectDir]);
-
   useEffect(() => { onModeChange?.(mode); }, [mode, onModeChange]);
   useEffect(() => { onTtsLoadingChange?.(ttsLoading); }, [ttsLoading, onTtsLoadingChange]);
   useEffect(() => {

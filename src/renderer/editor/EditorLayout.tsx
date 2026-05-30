@@ -151,8 +151,10 @@ export function EditorLayout() {
       const { segments: result } = await window.api.ttsGenerateAll();
       dispatch({ type: 'TTS_GENERATED', segments: result });
       setTtsNonce((n) => n + 1);
-      // PreviewPlayer 側の reactive useEffect が ttsAudio の変化を検知して
-      // 自動でコントローラを再 load する（auto-switch 時の空 buffers 問題対策）。
+      // 初回 auto-switch 時はまだ TTS 音声ファイルが無く、TTS コントローラの slot
+      // buffers が空のままになっている。生成完了した segments で再 load して、
+      // 再生時に音声が鳴らないバグを防ぐ。
+      await previewRef.current?.reloadTts(result);
     } catch (err) {
       dispatch({ type: 'TTS_ERROR', error: String(err) });
     }
