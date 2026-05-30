@@ -22,6 +22,7 @@ interface Props {
   onSeek: (time: number) => void;
   onSplitAtClick?: (segmentId: string, t: number) => void;
   onResizeCommit?: (primaryId: string, side: 'left' | 'right', newTime: number) => void;
+  onDeleteClick?: (key: { segmentId: string; t: number; x: number; y: number }) => void;
 }
 
 const ROW_H = 28;
@@ -30,11 +31,15 @@ const MAX_PX_PER_SEC = 400;
 
 export function Timeline({
   duration, currentTime, segments, selectedId, playingId, playing,
-  onSelect, onSeek, onSplitAtClick, onResizeCommit,
+  onSelect, onSeek, onSplitAtClick, onResizeCommit, onDeleteClick,
 }: Props) {
   const { t } = useTranslation();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [pxPerSec, setPxPerSec] = useState(0);
+  type SelectedClick = { segmentId: string; t: number; x: number; y: number };
+  const [selectedClick, setSelectedClick] = useState<SelectedClick | null>(null);
+  // segments が外部から書き換わったら（削除/分割/結合/カット/編集など）選択解除
+  useEffect(() => { setSelectedClick(null); }, [segments]);
 
   // 初回（duration が確定したら）Fit で初期化
   useLayoutEffect(() => {
@@ -126,6 +131,15 @@ export function Timeline({
     if (e.key === '+' || e.key === '=') { e.preventDefault(); applyZoom(pxPerSec * Math.SQRT2, center); }
     else if (e.key === '-' || e.key === '_') { e.preventDefault(); applyZoom(pxPerSec / Math.SQRT2, center); }
     else if (e.key === '0') { e.preventDefault(); applyZoom(fitPxPerSec(), center); }
+    else if (e.key === 'Escape') { if (selectedClick) { e.preventDefault(); setSelectedClick(null); } }
+    else if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (selectedClick && onDeleteClick) {
+        e.preventDefault();
+        onDeleteClick(selectedClick);
+        // 削除直後の解除は segments 変化を待つ useEffect が行うが、Backspace の Electron 既定動作などを抑止するためここでも null 化
+        setSelectedClick(null);
+      }
+    }
   };
 
   const contentWidth = duration > 0 && pxPerSec > 0 ? duration * pxPerSec : 0;
@@ -150,6 +164,7 @@ export function Timeline({
   const onContentClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
+    setSelectedClick(null);
     onSeek(Math.max(0, Math.min(duration, pxToTime(x, pxPerSec))));
   };
 
@@ -278,17 +293,32 @@ export function Timeline({
             }))}
 
             {/* クリック行 */}
-            {contentRow(allClicks.map((c, i) => (
-              <div
-                key={`${c.segmentId}-${i}`}
-                className="absolute size-4 cursor-pointer"
-                style={{ top: ROW_H / 2 - 8, left: timeToPx(c.t, pxPerSec) - 8 }}
-                title={t('timeline.splitOnDoubleClick')}
-                onDoubleClick={(e) => { e.stopPropagation(); onSplitAtClick?.(c.segmentId, c.t); }}
-              >
-                <div className="size-2 rotate-45 bg-click-marker" style={{ margin: '4px' }} />
-              </div>
-            )))}
+            {contentRow(allClicks.map((c, i) => {
+              const isSelected =
+                !!selectedClick
+                && selectedClick.segmentId === c.segmentId
+                && selectedClick.t === c.t
+                && selectedClick.x === c.x
+                && selectedClick.y === c.y;
+              return (
+                <div
+                  key={`${c.segmentId}-${i}`}
+                  className={cn(
+                    'absolute size-4 cursor-pointer rounded-sm',
+                    isSelected && 'ring-2 ring-amber-300',
+                  )}
+                  style={{ top: ROW_H / 2 - 8, left: timeToPx(c.t, pxPerSec) - 8 }}
+                  title={`${t('timeline.splitOnDoubleClick')} / ${t('timeline.deleteClickHint')}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedClick({ segmentId: c.segmentId, t: c.t, x: c.x, y: c.y });
+                  }}
+                  onDoubleClick={(e) => { e.stopPropagation(); onSplitAtClick?.(c.segmentId, c.t); }}
+                >
+                  <div className="size-2 rotate-45 bg-click-marker" style={{ margin: '4px' }} />
+                </div>
+              );
+            }))}
 
             {/* 再生ヘッド（content 内・content と一緒にスクロールする） */}
             <div

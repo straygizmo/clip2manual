@@ -83,3 +83,23 @@ export function resizeBoundary(
   }
   return out;
 }
+
+export interface ClickKey {
+  segmentId: string;
+  t: number;
+  x: number;
+  y: number;
+}
+
+/** 指定セグメントの clicks から (t, x, y) が一致するクリックを 1 件削除する。
+ *  該当 segmentId が無い、もしくは一致クリックが無い場合は input をそのまま（参照同一で）返す。 */
+export function deleteClick(segments: Segment[], key: ClickKey): Segment[] {
+  const i = segments.findIndex((s) => s.id === key.segmentId);
+  if (i < 0) return segments;
+  const seg = segments[i];
+  const nextClicks = seg.clicks.filter((c) => !(c.t === key.t && c.x === key.x && c.y === key.y));
+  if (nextClicks.length === seg.clicks.length) return segments;
+  const next = segments.slice();
+  next[i] = { ...seg, clicks: nextClicks };
+  return next;
+}
