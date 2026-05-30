@@ -177,6 +177,17 @@ function Step2Panel() {
 function Step3Panel(p: StepperToolbarProps & { status: StepStatus }) {
   const { t } = useTranslation();
   const busy = p.status === 'running';
+  const { onLoadSpeakers } = p;
+  // パネルがアクティブになった時点で eager に speakers を取得しておく。
+  // 取得前は fallback の「話者 N」が表示され、プルダウンを開いた直後にラベルが
+  // 「ずんだもん (ノーマル)」等へ後追いで切り替わって見えるのを防ぐ。
+  // onLoadSpeakers は親で毎レンダ新規生成されるため ref で 1 回だけ呼ぶ。
+  const requestedRef = useRef(false);
+  useEffect(() => {
+    if (requestedRef.current) return;
+    requestedRef.current = true;
+    onLoadSpeakers();
+  }, [onLoadSpeakers]);
   const opts = p.speakers.length > 0
     ? p.speakers
     : [{ speaker: p.defaultSpeaker, label: t('inspector.speakerFallback', { id: p.defaultSpeaker }) }];
