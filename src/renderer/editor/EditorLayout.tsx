@@ -260,8 +260,8 @@ export function EditorLayout() {
         </div>
       </div>
 
-      {/* 下＝タイムライン（ツールバー＋本体） */}
-      <div className="flex flex-col">
+      {/* 下＝タイムライン（ツールバー＋本体）。relative+isolate+z-10 で <video> の OS 合成オーバーレイより前面に固定する。 */}
+      <div className="relative isolate z-10 flex flex-col">
         <TimelineToolbar
           playing={playing}
           mode={previewMode}
