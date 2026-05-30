@@ -86,7 +86,7 @@
     "creditWithSpeaker": "Credit: VOICEVOX ({{speaker}})",
     "cut": "Cut",
     "enable": "Enable",
-    "playSegment": "Play",
+    "enabled": "Enabled",
     "splitAtPlayhead": "Split (at playhead)",
     "mergeNext": "Merge with next",
     "cutBadge": "Cut (excluded from preview / export)",

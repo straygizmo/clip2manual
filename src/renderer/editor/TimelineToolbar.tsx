@@ -77,9 +77,9 @@ export function TimelineToolbar({
         <Switch
           checked={playOn}
           onCheckedChange={() => selected && onToggleCut(selected.id)}
-          disabled={!selected || ttsBusy}
+          disabled={!selected || ttsBusy || mode === 'original'}
         />
-        {t('inspector.playSegment')}
+        {t('inspector.enabled')}
       </label>
       <Button
         size="sm"
