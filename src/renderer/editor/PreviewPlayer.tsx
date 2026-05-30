@@ -106,23 +106,20 @@ export const PreviewPlayer = forwardRef<PreviewPlayerHandle, Props>(function Pre
 
   // 元音声モード：a.play() は click ハンドラ（user gesture）の中で呼ぶ必要がある。
   // <video onPlay> イベントは v.play() 後に非同期発火するため、そこから呼ぶと
-  // gesture の有効期限切れで Chrome の autoplay policy に拒否されることがある
-  // （特に pause→resume の resume 時に発生）。a.pause() は onPause で行う。
+  // gesture の有効期限切れで Chrome の autoplay policy に拒否されることがある。
+  // a.pause() は onPause で行う。currentTime の同期は onSeeked のみで行い、
+  // 自然再生中は触らない（narration.webm の seek が失敗するケースがあるため）。
   const toggleOriginal = () => {
     const v = videoRef.current;
     const a = audioRef.current;
     if (!v) return;
     if (v.paused) {
-      if (a && Number.isFinite(v.currentTime)) {
-        if (Math.abs(a.currentTime - v.currentTime) > 0.05) {
-          a.currentTime = v.currentTime;
-        }
+      if (a) {
         void a.play().catch((err) => console.warn('[preview] narration play rejected', err));
       }
       void v.play();
     } else {
       v.pause();
-      // a.pause() は <video onPause> 側で行う
     }
   };
 
@@ -230,15 +227,21 @@ export const PreviewPlayer = forwardRef<PreviewPlayerHandle, Props>(function Pre
               // を返してユーザーのクリック位置を 0 に上書きしてしまう。
               if (e.currentTarget.paused) return;
               onTime(e.currentTarget.currentTime);
-              syncAudioTime();
+              // 自然再生中の syncAudioTime はかつて入っていたが、narration.webm の seek が
+              // 失敗するケースで a.currentTime が 0 付近に巻き戻り、audio が極端に遅く
+              // 再生されるバグの原因になっていた。再生開始時は v.play()/a.play() を
+              // 同タイミングで呼ぶことで揃えており、ユーザー seek 時は onSeeked で同期する。
             }}
             onPlay={() => {
               if (inTts()) return;
               // a.play() は toggleOriginal（user gesture 内）で済ませている。
-              // ここで再度呼ぶと gesture の外なので autoplay policy に拒否されうる。
               notifyPlaying(true);
             }}
-            onPause={() => { if (inTts()) return; audioRef.current?.pause(); notifyPlaying(false); }}
+            onPause={() => {
+              if (inTts()) return;
+              audioRef.current?.pause();
+              notifyPlaying(false);
+            }}
             onSeeked={() => { if (inTts()) return; syncAudioTime(); }}
           />
           <RippleCanvas videoRef={videoRef} clicks={clicks} />
