@@ -139,7 +139,9 @@ export const PreviewPlayer = forwardRef<PreviewPlayerHandle, Props>(function Pre
     const gen = ++modeGen.current; // load の await 中に別の切替が来たら無効化
     videoRef.current?.pause();
     audioRef.current?.pause();
-    controllerRef.current?.stop();
+    // ctx.close() を await することで、後続の <audio> 再生時に音声デバイスが
+    // 確実に解放されている状態にする（元音声モードの無音バグ対策）。
+    await controllerRef.current?.stop();
     notifyPlaying(false);
     if (next === 'tts') {
       setTtsLoading(true);

@@ -47,7 +47,7 @@ export class TtsPreviewController {
   /** 各セグメントの TTS をデコードしてタイムラインを構築する。
    *  並行 load が来た場合は新しい方が勝つ（古い load の途中結果は反映しない）。 */
   async load(segments: Segment[], projectDir: string): Promise<void> {
-    this.stop();
+    await this.stop();
     const myGen = ++this.loadGen;
     const ctx = this.ensureCtx();
     const nextBuffers = new Map<string, AudioBuffer>();
@@ -132,7 +132,10 @@ export class TtsPreviewController {
     this.cb.onSlotProgress?.(null);
   }
 
-  stop(): void {
+  /** 完全停止して AudioContext も閉じる。close() は async なので、呼び出し側は
+   *  await すること。await しないと、後続で <audio> 要素を play しても音声出力
+   *  デバイスがまだ TTS の ctx に握られて鳴らない / 歪む。 */
+  async stop(): Promise<void> {
     this.playGen++;
     this.teardown();
     this.playing = false;
@@ -144,15 +147,15 @@ export class TtsPreviewController {
       this.cb.onActiveSegment?.(null);
     }
     this.cb.onSlotProgress?.(null);
-    // 開いたままの AudioContext は <audio> 要素（元ナレーション）の音声出力を歪ませる
-    // （ノイズ化する）ことがあるため、TTS から離れる際にクローズして音声出力デバイスを
-    // 解放する。decodeToWav と同じ方針。次回 TTS は load() が ctx を作り直す。
-    if (this.ctx && this.ctx.state !== 'closed') void this.ctx.close();
+    const ctxToClose = this.ctx;
     this.ctx = null;
+    if (ctxToClose && ctxToClose.state !== 'closed') {
+      try { await ctxToClose.close(); } catch { /* 既に closed の競合は無視 */ }
+    }
   }
 
   dispose(): void {
-    this.stop();
+    void this.stop(); // unmount 時のクリーンアップは fire-and-forget で十分
   }
 
   private tick = (): void => {
