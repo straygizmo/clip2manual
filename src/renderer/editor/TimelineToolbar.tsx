@@ -33,9 +33,11 @@ export function TimelineToolbar({
 
   const isLast = !!selected && segments.length > 0
     && segments[segments.length - 1].id === selected.id;
-  const canSplit = !!selected
+  const playheadInside = !!selected
     && currentTime > selected.videoStart
     && currentTime < selected.videoEnd;
+  const canSplit = playheadInside;
+  const canMerge = playheadInside && !isLast;
 
   const playOn = selected ? selected.enabled !== false : true;
 
@@ -96,7 +98,7 @@ export function TimelineToolbar({
         variant="outline"
         className="shrink-0"
         onClick={() => selected && onMergeNext(selected.id)}
-        disabled={!selected || isLast || ttsBusy}
+        disabled={!canMerge || ttsBusy}
       >
         <ArrowRightToLine className="size-4" />
         {t('inspector.mergeNext')}
