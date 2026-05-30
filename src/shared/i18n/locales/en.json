@@ -93,6 +93,7 @@
     "segment": "Segment",
     "click": "Click",
     "splitOnDoubleClick": "Double-click to split",
+    "deleteClickHint": "Click to select, Delete to remove",
     "time": "Time"
   },
   "preview": {

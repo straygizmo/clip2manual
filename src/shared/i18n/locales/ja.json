@@ -93,6 +93,7 @@
     "segment": "セグメント",
     "click": "クリック",
     "splitOnDoubleClick": "ダブルクリックで分割",
+    "deleteClickHint": "クリックで選択 / Delete で削除",
     "time": "時刻"
   },
   "preview": {
