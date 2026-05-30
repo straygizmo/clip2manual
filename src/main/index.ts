@@ -13,8 +13,8 @@ function createWindow(): void {
   // OSロケールを preload に同期的に渡す（renderer 側 i18n の初期化に使う）。
   const locale = app.getLocale() || 'ja';
   const win = new BrowserWindow({
-    width: 1100,
-    height: 720,
+    width: 1200,
+    height: 820,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
