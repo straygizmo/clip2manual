@@ -50,6 +50,24 @@
     "showSubtitles": "Subtitles",
     "showSubtitlesTooltip": "Show subtitles in preview and exported MP4"
   },
+  "stepper": {
+    "step1Label": "1. Transcribe",
+    "step2Label": "2. Edit",
+    "step3Label": "3. Generate voice",
+    "step4Label": "4. Export",
+    "step1Run": "Run transcription",
+    "step1RunningHint": "{{percent}}% in progress…",
+    "step1DoneHint": "✓ Done. Review and edit the segments on the timeline.",
+    "step1RestartNote": "To redo, create a new project from the home screen.",
+    "step2Hint": "Click a segment on the timeline to edit its text. When done, move on to 3. Generate voice.",
+    "step3Run": "Generate all segments",
+    "step3RunningHint": "{{percent}}% in progress…",
+    "step3DoneHint": "✓ Audio generated for all segments.",
+    "step4Run": "Export to MP4",
+    "step4RunningHint": "{{percent}}% in progress…",
+    "step4DoneHint": "✓ Export complete.",
+    "lockedHint": "Complete the previous step first."
+  },
   "inspector": {
     "selectPrompt": "Select a segment",
     "title": "Segment {{index}} ({{id}})",

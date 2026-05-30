@@ -50,6 +50,24 @@
     "showSubtitles": "字幕",
     "showSubtitlesTooltip": "プレビューと書き出しMP4に字幕を表示します"
   },
+  "stepper": {
+    "step1Label": "1. 文字起こし",
+    "step2Label": "2. 編集",
+    "step3Label": "3. 音声生成",
+    "step4Label": "4. 書き出し",
+    "step1Run": "文字起こしを実行",
+    "step1RunningHint": "{{percent}}% 進行中…",
+    "step1DoneHint": "✓ 完了しました。タイムラインで内容を確認・編集してください。",
+    "step1RestartNote": "やり直す場合は、ホームから新規プロジェクトを作成してください。",
+    "step2Hint": "タイムラインのセグメントをクリックしてテキストを編集できます。完了したら 3. 音声生成へ進んでください。",
+    "step3Run": "全セグメント生成",
+    "step3RunningHint": "{{percent}}% 進行中…",
+    "step3DoneHint": "✓ 全セグメントの音声を生成しました。",
+    "step4Run": "MP4 書き出し",
+    "step4RunningHint": "{{percent}}% 進行中…",
+    "step4DoneHint": "✓ 書き出し完了。",
+    "lockedHint": "前のステップを完了させてください。"
+  },
   "inspector": {
     "selectPrompt": "セグメントを選択してください",
     "title": "セグメント {{index}}（{{id}}）",
