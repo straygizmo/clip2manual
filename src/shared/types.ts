@@ -42,6 +42,10 @@ export interface ProjectSource {
   narration: string;
   clickLog: string;
   display: DisplayInfo;
+  /** 'screen' = ディスプレイ全体, 'window' = 特定ウィンドウ。旧プロジェクトでは undefined。 */
+  captureKind?: 'screen' | 'window';
+  /** UI 表示用ラベル（例「ディスプレイ 1（プライマリ・1920×1080）」/ウィンドウタイトル）。 */
+  captureLabel?: string;
 }
 
 export interface LLMSettings {
