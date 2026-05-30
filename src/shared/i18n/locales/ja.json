@@ -105,7 +105,7 @@
     "pause": "一時停止",
     "audioLabel": "音声:",
     "modeOriginal": "元音声",
-    "modeTts": "TTS",
+    "modeTts": "TTS音声",
     "ttsLoading": "TTS読み込み中…",
     "missingTtsHint": "TTS未生成のセグメントは無音で再生されます"
   },
