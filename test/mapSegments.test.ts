@@ -2,9 +2,17 @@ import { describe, it, expect } from 'vitest';
 import {
   groupTokensIntoPhrases,
   mapWhisperSegments,
+  clampSegmentsToDuration,
   type WhisperSegment,
 } from '../src/main/transcription/mapSegments';
-import { type ClickEvent } from '../src/shared/types';
+import { type ClickEvent, type Segment } from '../src/shared/types';
+
+function seg(id: string, start: number, end: number): Segment {
+  return {
+    id, videoStart: start, videoEnd: end, originalText: `o-${id}`, correctedText: `c-${id}`,
+    ttsAudio: null, voice: { speaker: 3, speed: 1 }, clicks: [], enabled: true,
+  };
+}
 
 const voice = { speaker: 3, speed: 1.0 };
 const segs: WhisperSegment[] = [
@@ -223,5 +231,37 @@ describe('groupTokensIntoPhrases', () => {
     ];
     const out = groupTokensIntoPhrases(tokens, [3000, 1200]);
     expect(out.map((p) => p.text)).toEqual(['AB', 'CD', 'E']);
+  });
+});
+
+describe('clampSegmentsToDuration', () => {
+  it('clamps the last segment when it overruns the video duration', () => {
+    const r = clampSegmentsToDuration([seg('a', 0, 2), seg('b', 2, 5.5)], 5);
+    expect(r).toHaveLength(2);
+    expect(r[1].videoEnd).toBe(5);
+  });
+
+  it('drops segments that start at or past the video duration', () => {
+    const r = clampSegmentsToDuration([seg('a', 0, 5), seg('b', 6, 7)], 5);
+    expect(r.map((s) => s.id)).toEqual(['a']);
+  });
+
+  it('returns input unchanged when nothing overruns', () => {
+    const segs = [seg('a', 0, 2), seg('b', 2, 5)];
+    const r = clampSegmentsToDuration(segs, 5);
+    expect(r).toBe(segs);
+  });
+
+  it('returns input unchanged for non-positive or non-finite duration', () => {
+    const segs = [seg('a', 0, 5)];
+    expect(clampSegmentsToDuration(segs, 0)).toBe(segs);
+    expect(clampSegmentsToDuration(segs, Number.NaN)).toBe(segs);
+    expect(clampSegmentsToDuration(segs, Infinity)).toBe(segs);
+  });
+
+  it('clamps a segment whose start is negative', () => {
+    const r = clampSegmentsToDuration([seg('a', -0.5, 2)], 5);
+    expect(r[0].videoStart).toBe(0);
+    expect(r[0].videoEnd).toBe(2);
   });
 });

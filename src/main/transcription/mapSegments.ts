@@ -118,6 +118,28 @@ function distanceToRange(t: number, start: number, end: number): number {
   return 0;
 }
 
+/** Segment[] をビデオ長 [0, durationSec] にクランプする。
+ *  whisper の最終トークン timestamp は narration.webm の長さに依存しており、
+ *  recording 側の小さい誤差で raw.webm の長さを越えることがある。越えた末端は
+ *  クランプし、完全にビデオ外（start >= duration）のセグメントは破棄する。 */
+export function clampSegmentsToDuration(segments: Segment[], durationSec: number): Segment[] {
+  if (!Number.isFinite(durationSec) || durationSec <= 0) return segments;
+  const needsWork = segments.some(
+    (s) => s.videoStart < 0 || s.videoEnd > durationSec || s.videoStart >= durationSec,
+  );
+  if (!needsWork) return segments; // 参照同一を保ち、無駄な書き込みを防ぐ
+  const out: Segment[] = [];
+  for (const s of segments) {
+    const start = Math.max(0, s.videoStart);
+    const end = Math.min(durationSec, s.videoEnd);
+    if (start >= end) continue; // 完全にビデオ外、または潰れたセグメントは破棄
+    out.push(
+      start === s.videoStart && end === s.videoEnd ? s : { ...s, videoStart: start, videoEnd: end },
+    );
+  }
+  return out;
+}
+
 /** whisper のセグメント配列を Project の Segment[] に変換し、clicks を時間で割り当てる。 */
 export function mapWhisperSegments(
   whisper: WhisperSegment[],
