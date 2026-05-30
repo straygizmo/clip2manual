@@ -6,6 +6,9 @@ import { RippleCanvas } from './RippleCanvas';
 export interface PreviewPlayerHandle {
   togglePlay: () => void;
   switchMode: (next: 'original' | 'tts') => Promise<void>;
+  /** 渡された segments で TTS コントローラを再 load する。auto-switch 後に
+   *  TTS 音声ファイルが生成された直後に呼び、空 buffers の slot を破棄する。 */
+  reloadTts: (segments: Segment[]) => Promise<void>;
 }
 
 interface Props {
@@ -146,7 +149,13 @@ export const PreviewPlayer = forwardRef<PreviewPlayerHandle, Props>(function Pre
     setMode(next);
   };
 
-  useImperativeHandle(ref, () => ({ togglePlay, switchMode }), [mode, playing, segments, projectDir]);
+  useImperativeHandle(ref, () => ({
+    togglePlay,
+    switchMode,
+    reloadTts: async (segs: Segment[]) => {
+      await controllerRef.current?.load(segs, projectDir);
+    },
+  }), [mode, playing, segments, projectDir]);
 
   const switchModeRef = useRef(switchMode);
   switchModeRef.current = switchMode;
