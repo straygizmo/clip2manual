@@ -136,7 +136,7 @@ interface StepperToolbarProps {
 
 - **アクティブステップ自動追従**: アクティブステップが派生で変わると Row 2 のパネルも自動的に切り替わる。手動チップクリックでの切替は React のローカル state で記憶し、派生アクティブステップが**前進**したら自動でそこへスナップする。後退（既に done のステップへの手動戻り）はユーザー操作優先で維持する。
 - **Step 1 のワンショット性**: `transcription.status` が `running|error` 以外で `segments.length > 0` のとき、Step 1 チップは `done` 表示 + Disabled、Step 1 のパネルは完了ヒントのみ表示。再実行手段はエディタ内に存在させない。
-- **Step 3 のアクティブ判定**: 1 件でも `ttsClipPath` を持つセグメントがある時点で Step 2 は `done` になるが、Step 3 自体は「全 enabled が持つ」まで `active` を維持する。Inspector からの単発再生成にも自然に追従する。
+- **Step 3 のアクティブ判定**: 1 件でも `ttsAudio` を持つセグメントがある時点で Step 2 は `done` になるが、Step 3 自体は「全 enabled が持つ」まで `active` を維持する。Inspector からの単発再生成にも自然に追従する。
 - **エラー表示**: `error` 状態のチップは赤系統で表示し、Row 2 のパネルにエラーメッセージを残す。エラー後にユーザーが再操作（Step 1 なら不可、Step 3/4 なら再実行可）すると `running` へ戻る。
 
 ## 6. テスト方針
