@@ -9,10 +9,13 @@ import { setMainLanguage } from './i18n';
 
 registerAssetScheme(); // app ready より前に呼ぶ
 
+let mainWindow: BrowserWindow | null = null;
+export function getMainWindow(): BrowserWindow | null { return mainWindow; }
+
 function createWindow(): void {
   // OSロケールを preload に同期的に渡す（renderer 側 i18n の初期化に使う）。
   const locale = app.getLocale() || 'ja';
-  const win = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1200,
     height: 820,
     webPreferences: {
@@ -26,6 +29,7 @@ function createWindow(): void {
       backgroundThrottling: false,
     },
   });
+  const win = mainWindow;
 
   if (process.env['ELECTRON_RENDERER_URL']) {
     win.loadURL(process.env['ELECTRON_RENDERER_URL']);
