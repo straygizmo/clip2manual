@@ -25,15 +25,19 @@ export function HomeScreen() {
   }
 
   async function onStart() {
-    const recorder = new ScreenRecorder();
     try {
+      // 最小化アニメーションが録画に写り込まないよう、先にウィンドウを最小化し
+      // OS のアニメーション完了を待ってから録画を開始する。
+      await window.api.notifyRecordingStarted();
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      const recorder = new ScreenRecorder();
       await recorder.start();
       await window.api.startRecording();
       recorderRef.current = recorder;
       setRecording(true);
       setStatus(t('home.statusRecording'));
-      await window.api.notifyRecordingStarted();
     } catch (err) {
+      await window.api.notifyRecordingStopped();
       recorderRef.current = null;
       setRecording(false);
       setStatus(t('home.recordStartFailed', { message: String(err) }));
